@@ -440,6 +440,9 @@ details.adv[open] summary::after{transform:rotate(180deg)}
 .buddy img{width:100%;height:100%;object-fit:contain;display:block;transform-origin:50% 100%;will-change:transform}
 .buddy.talking{animation:bob .42s ease-in-out infinite alternate}
 @keyframes bob{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(-4px) rotate(2deg)}}
+.stylecard{display:grid;gap:10px;padding:12px;border-radius:14px;background:var(--surface2)}
+.stylechips{display:flex;flex-wrap:wrap;gap:6px}
+.stylechips span{background:var(--surface);border-radius:12px;padding:4px 10px;font-size:13px}
 .slotgrp{display:grid;gap:8px}
 .slotgrp + .slotgrp{border-top:1px solid var(--line);padding-top:12px}
 .sgh{font-size:14px;font-weight:500;color:var(--ink)}
@@ -825,6 +828,26 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
         <div class="small">With Eleven v3, the chill personality also adds soft sighs and tone. Write your own lines below to make <span data-pt="obj"></span> sound exactly right.</div>
       </div>
       <button class="pbtn outline" id="openLines" type="button"><span class="ms">edit_note</span>Write custom lines</button>
+      <h3>Learn a speaking style</h3>
+      <div class="small">Paste the transcript of a stream or video and your buddy learns how that person talks: favorite words, fillers, catchphrases, how they react and joke. Then turn it on below. The more you paste (a few streams is ideal), the better. Uses your Claude key, usually a few cents per transcript.</div>
+      <details class="adv"><summary>How to get a transcript</summary>
+        <div class="advbody small">
+          <div><b>YouTube on a computer (easiest):</b> open the stream or VOD → under the video, click <b>…more</b> → <b>Show transcript</b>. Click in the transcript panel, press Ctrl+A then Ctrl+C, and paste it here. Timestamps are cleaned out automatically.</div>
+          <div><b>Subtitle files:</b> if you have an .srt or .vtt subtitle file, upload it with the button below.</div>
+          <div><b>Several streams:</b> paste or upload one after another. Each one is added to what she's learned.</div>
+        </div>
+      </details>
+      <div class="fld"><label for="styleName">Whose style is this?</label><input id="styleName" type="text" autocomplete="off" placeholder="e.g. Saba"></div>
+      <div class="fld"><label for="styleText">Transcript</label><textarea id="styleText" placeholder="Paste a transcript here…"></textarea><div class="small" id="styleCount"></div></div>
+      <div class="btnrow"><label class="pbtn outline" for="styleFile"><span class="ms">upload_file</span>Upload subtitles</label><input type="file" id="styleFile" accept=".txt,.srt,.vtt,text/plain,text/vtt" multiple hidden><button class="pbtn primary" id="styleGo" type="button"><span class="ms">auto_awesome</span>Learn this style</button></div>
+      <div class="status" id="styleStatus"></div>
+      <div class="stylecard" id="styleCard" hidden>
+        <div class="sgh" id="styleTitle"></div>
+        <div class="small" id="styleSummary"></div>
+        <div class="stylechips" id="styleChips"></div>
+        <label class="check"><input type="checkbox" id="styleOn">Talk in this style when you chat with her</label>
+        <div class="btnrow"><button class="pbtn outline" id="styleLines" type="button"><span class="ms">edit_note</span>Write my navigation lines in this style</button><button class="pbtn outline danger" id="styleDel" type="button">Forget this style</button></div>
+      </div>
       <div class="fld"><label>Your buddy is</label><div class="seg" id="pronSeg"><button type="button" data-v="it">Neutral</button><button type="button" data-v="she">She</button><button type="button" data-v="he">He</button><button type="button" data-v="they">They</button></div>
         <div class="small">Changes how menus talk about your navigator. With She, He or They, menus also use its name; Neutral keeps everything generic.</div></div>
       <div class="fld"><label>Road-trip chatter</label><div class="seg" id="chatterSeg"><button type="button" data-v="off">Off</button><button type="button" data-v="some">Some</button><button type="button" data-v="chatty">Chatty</button></div>
@@ -1026,12 +1049,12 @@ const S = {
   persona:(p => p === 'shark' ? 'chill' : p)(LS.get('persona','standard')), customLines:LS.get('customLines',{}), chatter:LS.get('chatter','some'), funFacts:LS.get('funFacts',true), speedWarn:LS.get('speedWarn',true),
   stab:LS.get('stab',0.55), sim:LS.get('sim',0.8), sty:LS.get('sty',0), spd:LS.get('spd',1), boost:LS.get('boost',true),
   theme:LS.get('theme','auto'), skin:LS.get('skin','google'), customColor:LS.get('customColor','#e0559b'), layer:LS.get('layer','default'), mode:LS.get('mode','car'),
-  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), buddyMotion:LS.get('buddyMotion','png'), pron:LS.get('pron','it'), spdMode:LS.get('spdMode','both'), navTilt:LS.get('navTilt',true), asstLen:LS.get('asstLen','auto'), ppRadius:LS.get('ppRadius',100), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
+  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), buddyMotion:LS.get('buddyMotion','png'), pron:LS.get('pron','it'), styleProfile:LS.get('styleProfile',null), styleOn:LS.get('styleOn',false), spdMode:LS.get('spdMode','both'), navTilt:LS.get('navTilt',true), asstLen:LS.get('asstLen','auto'), ppRadius:LS.get('ppRadius',100), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
 Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true), gKey:LS.get('gKey',''), gDay:LS.get('gDay',25), gPhotoDay:LS.get('gPhotoDay',30) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['gKey','gDay','gPhotoDay','vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','buddyMotion','pron','spdMode','navTilt','asstLen','ppRadius','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['gKey','gDay','gPhotoDay','vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','buddyMotion','pron','styleProfile','styleOn','spdMode','navTilt','asstLen','ppRadius','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -3527,8 +3550,11 @@ function systemPrompt(place){
     : 'Chill, low-energy, laid-back and a little deadpan. Relaxed phrasing, the occasional "mm" or "...", never hyper or bubbly, no catchphrases.';
   const now = new Date();
   const pr = { she:'Your pronouns are she/her.', he:'Your pronouns are he/him.', they:'Your pronouns are they/them.' }[S.pron] || '';
+  const SP = S.styleOn && S.styleProfile ? S.styleProfile : null;
   return `You are ${name}, a voice navigation buddy riding along in the user's car. ${pr} Everything you write is read aloud by text-to-speech while they drive.
-Personality: ${style}
+Personality: ${style}${SP ? `
+Speaking style: talk the way ${SP.name || 'this person'} talks. Copy their word choice, fillers, catchphrases, sentence rhythm and the way they react and joke, but keep it natural and don't overdo catchphrases (at most one per reply). Don't claim their life details or say you are them unless the user plays along.
+${SP.guide}` : ''}
 ${VIBE_PROMPT[S.vibe] || VIBE_PROMPT.casual}
 ${S.geminiKey && S.asstTone ? `Voice analysis: the user's message may start with a note in square brackets, like [whispering] or [sounds sarcastic, laughing], describing HOW they said it. React naturally: answer softly and briefly if they whisper, play along if they're sarcastic, match excitement or annoyance. Never mention or repeat the note itself.` : ''}
 ${S.model === 'eleven_v3' ? 'Your voice can perform one short audio tag at the start of a sentence, like [whispers], [laughs], [sighs] or [sarcastically]. Use one only when it fits the moment, at most once per reply.' : 'Never use square-bracket tags.'}
@@ -5207,7 +5233,7 @@ const SET_PAGES = [
 ];
 let setPage = null;
 /* ---------- characters: whole buddy setups you can switch between ---------- */
-const CHAR_KEYS = ['asstLen','asstName','pron','voiceId','voiceName','model','stab','sim','sty','spd','boost','persona','customLines','chatter','vibe','skin','customColor','buddySize','buddyOn','buddyMotion','wakePhrase'];
+const CHAR_KEYS = ['styleProfile','styleOn','asstLen','asstName','pron','voiceId','voiceName','model','stab','sim','sty','spd','boost','persona','customLines','chatter','vibe','skin','customColor','buddySize','buddyOn','buddyMotion','wakePhrase'];
 const CHARS = { list:[] };
 const IDB = (() => {
   const run = (mode, fn) => DB.run('chars', mode, fn);
@@ -5275,6 +5301,7 @@ function showSetPage(id){
   $('setMenu').hidden = !!id; $('setBack').hidden = !id;
   $('setTitle').textContent = id ? SET_PAGES.find(p => p.id === id).title : 'Settings';
   if (!id){ readVoiceFields(); renderSetMenu(); }
+  if (id === 'personality'){ renderStyle(); styleCount(); }
   if (id === 'characters'){ $('charName').placeholder = `e.g. ${assistantName()}`; loadChars().then(renderChars); }
   disarmAll();
   $('settings').querySelector('.panel').scrollTop = 0;
@@ -5635,6 +5662,82 @@ $('gmFile').addEventListener('change', async () => {
   $('gmStatus').textContent = `Opening ${files[0].name} (${Math.max(1, Math.round(files[0].size / 1024))} KB)…`;
   try{ await importTakeout(files); }catch(e){ $('gmStatus').textContent = e.message || "Couldn't read that file"; }
 });
+/* ---------- learn a speaking style from transcripts ---------- */
+function cleanTranscript(t){
+  return String(t || '')
+    .replace(/^WEBVTT.*$/gim, '').replace(/^NOTE .*$/gim, '')
+    .replace(/^\d+\s*$/gm, '')                                              // srt numbers
+    .replace(/^\s*\d{1,2}:\d{2}(:\d{2})?([.,]\d+)?\s*(-->.*)?$/gm, '')       // timestamps
+    .replace(/^\s*\d{1,2}:\d{2}(:\d{2})?\s+/gm, '')                         // "0:01 text" style
+    .replace(/\d{1,2}:\d{2}:\d{2}[.,]\d+\s*-->\s*\S+.*$/gm, '')
+    .replace(/<[^>]+>/g, '').replace(/\[(music|applause|laughter)\]/gi, m => m)
+    .replace(/[ \t]+/g, ' ').replace(/\n{2,}/g, '\n').trim();
+}
+function styleCount(){ const n = cleanTranscript($('styleText').value).split(/\s+/).filter(Boolean).length; $('styleCount').textContent = n ? `${n.toLocaleString()} words${n < 1500 ? ' (more helps: aim for 3,000+)' : ''}` : ''; }
+$('styleText').addEventListener('input', styleCount);
+$('styleFile').addEventListener('change', async () => {
+  const files = [...($('styleFile').files || [])]; $('styleFile').value = '';
+  for (const f of files){ const t = await f.text(); $('styleText').value = ($('styleText').value ? $('styleText').value + '\n' : '') + cleanTranscript(t); }
+  styleCount();
+});
+async function claudeOnce(system, user, maxTokens = 1500){
+  const r = await fetchTimeout('https://api.anthropic.com/v1/messages', 90000, { method:'POST',
+    headers:{ 'content-type':'application/json', 'x-api-key':S.claudeKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+    body:JSON.stringify({ model:S.claudeModel, max_tokens:maxTokens, system, messages:[{ role:'user', content:user }] }) });
+  if (r.status === 401) throw new Error('Your Claude key was rejected. Check it in Settings → Assistant.');
+  if (!r.ok){ let m = ''; try{ m = (await r.json()).error?.message || ''; }catch{} throw new Error(m || 'Claude error ' + r.status); }
+  const j = await r.json();
+  return (j.content || []).map(b => b.text || '').join('');
+}
+const parseJSON = t => { try{ return JSON.parse(t); }catch{ const m = String(t).match(/\{[\s\S]*\}/); if (m) try{ return JSON.parse(m[0]); }catch{} } return null; };
+function renderStyle(){
+  const P = S.styleProfile; $('styleCard').hidden = !P;
+  if (!P) return;
+  $('styleTitle').textContent = `Learned style: ${P.name || 'Unnamed'}`;
+  $('styleSummary').textContent = `${P.summary || ''} (from about ${(P.words || 0).toLocaleString()} words)`;
+  $('styleChips').innerHTML = [...(P.catchphrases || []), ...(P.fillers || [])].slice(0, 14).map(x => `<span>${esc(x)}</span>`).join('');
+  $('styleOn').checked = !!S.styleOn;
+}
+$('styleGo').onclick = async () => {
+  if (!S.claudeKey){ toast('Add a Claude key in Settings → Assistant first', 4500); return; }
+  const text = cleanTranscript($('styleText').value), words = text.split(/\s+/).filter(Boolean).length;
+  if (words < 200){ $('styleStatus').textContent = 'Paste a longer transcript first (at least a few minutes of talking).'; return; }
+  const name = $('styleName').value.trim() || (S.styleProfile && S.styleProfile.name) || assistantName();
+  const sample = text.length > 90000 ? text.slice(0, 45000) + '\n…\n' + text.slice(-45000) : text; // keep cost low on huge pastes
+  $('styleGo').disabled = true; $('styleStatus').className = 'status'; $('styleStatus').textContent = 'Listening to how they talk…';
+  try{
+    const prev = S.styleProfile && S.styleProfile.name === name ? S.styleProfile : null;
+    const out = await claudeOnce(
+      `You analyze how a person talks so an AI voice character can imitate their speaking style (word choice, not facts). Reply with JSON only:
+{"summary":"one sentence describing their vibe","fillers":["…"],"catchphrases":["short phrases they repeat"],"vocabulary":["distinctive words/slang"],"reactions":"how they react to surprise, success, annoyance, boredom","humor":"their kind of humor","rhythm":"sentence length, pacing, how they start/end sentences","avoid":["things they never say or do"],"examples":["8-12 short NEW example lines in their style about driving or everyday things (do not copy long passages)"]}`,
+      `${prev ? `Earlier analysis to merge with and improve:\n${JSON.stringify(prev.raw)}\n\n` : ''}Transcript of ${name}:\n${sample}`, 1800);
+    const j = parseJSON(out); if (!j) throw new Error("Couldn't read the analysis. Try again.");
+    const guide = [`Vibe: ${j.summary || ''}`, j.fillers?.length && `Fillers: ${j.fillers.join(', ')}`, j.catchphrases?.length && `Catchphrases (use sparingly): ${j.catchphrases.join(' | ')}`,
+      j.vocabulary?.length && `Favorite words/slang: ${j.vocabulary.join(', ')}`, j.reactions && `Reactions: ${j.reactions}`, j.humor && `Humor: ${j.humor}`, j.rhythm && `Rhythm: ${j.rhythm}`,
+      j.avoid?.length && `Never: ${j.avoid.join('; ')}`, j.examples?.length && `Example lines in this style:\n- ${j.examples.join('\n- ')}`].filter(Boolean).join('\n');
+    S.styleProfile = { name, summary:j.summary || '', fillers:j.fillers || [], catchphrases:j.catchphrases || [], guide, raw:j, words:(prev ? prev.words || 0 : 0) + words, t:Date.now() };
+    S.styleOn = true; save(); renderStyle();
+    $('styleText').value = ''; styleCount();
+    $('styleStatus').textContent = prev ? `Added to ${name}'s style. Paste more anytime to keep improving it.` : `Learned ${name}'s style and turned it on. Ask your buddy something to hear it.`;
+  }catch(e){ $('styleStatus').className = 'status err'; $('styleStatus').textContent = e.message || 'Something went wrong'; }
+  finally{ $('styleGo').disabled = false; }
+};
+$('styleOn').onchange = () => { S.styleOn = $('styleOn').checked; save(); };
+$('styleLines').onclick = async () => {
+  const P = S.styleProfile; if (!P || !S.claudeKey) return;
+  $('styleLines').disabled = true; $('styleStatus').className = 'status'; $('styleStatus').textContent = 'Writing navigation lines in this style…';
+  try{
+    const kinds = CUSTOM_KINDS.map(c => `"${c.k}": ${c.label}${c.hint ? ` (placeholders you may use: ${c.hint})` : ''}`).join('\n');
+    const out = await claudeOnce(`You write short spoken lines for a car navigation voice character. Reply with JSON only: an object whose keys are the line types and values are arrays of 4 short lines (under 15 words each). Keep placeholders exactly as written, like {place}. No emoji, no stage directions.`,
+      `Write lines in this speaking style:\n${P.guide}\n\nLine types:\n${kinds}`, 1500);
+    const j = parseJSON(out); if (!j) throw new Error("Couldn't read the lines. Try again.");
+    const lines = {}; CUSTOM_KINDS.forEach(c => { if (Array.isArray(j[c.k]) && j[c.k].length) lines[c.k] = j[c.k].map(x => String(x).trim()).filter(Boolean).slice(0, 6); });
+    S.customLines = { ...(S.customLines || {}), ...lines }; save();
+    $('styleStatus').textContent = 'Done. Tap "Write custom lines" to read or tweak them.';
+  }catch(e){ $('styleStatus').className = 'status err'; $('styleStatus').textContent = e.message || 'Something went wrong'; }
+  finally{ $('styleLines').disabled = false; }
+};
+function styleDelInit(){ confirmTap($('styleDel'), () => { S.styleProfile = null; S.styleOn = false; save(); renderStyle(); $('styleStatus').textContent = 'Style forgotten.'; }); }
 /* fat-finger protection */
 KEY_FIELDS.forEach(([i, b]) => wireKey(i, b));
 confirmTap($('clearCache'), $('clearCache').onclick);
@@ -5643,6 +5746,7 @@ confirmTap($('clearHistory'), $('clearHistory').onclick);
 confirmTap($('avRemove'), $('avRemove').onclick);
 confirmTap($('resetVoice'), $('resetVoice').onclick);
 speechDelInit();
+styleDelInit();
 
 /* app icon */
 function syncIconPick(){ let cur = LS.get('iconStyle', 'Default'); try{ if (NATIVE && NATIVE.getAppIcon) cur = NATIVE.getAppIcon(); }catch{} document.querySelectorAll('#iconPick .icn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.icon === cur))); }
