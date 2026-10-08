@@ -394,6 +394,11 @@ a.rowi{color:inherit}
 .asksrc{display:flex;flex-wrap:wrap;gap:6px}
 .asksrc a{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:3px 8px;color:var(--blue-dark)}
 .askrow{display:flex;gap:16px;align-items:center}
+#pinFix .pfcard{position:fixed;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 12px);z-index:600;background:var(--surface);border-radius:16px;box-shadow:var(--shadow);padding:12px 16px}
+.pft{font-weight:500;font-size:15px}.pfs{color:var(--muted);font-size:13px;margin-top:2px}
+#pinFix .pfpin{position:fixed;left:50%;top:50%;z-index:590;transform:translate(-50%,-100%);pointer-events:none}
+#pinFix .pfpin .ms{font-size:52px;color:#ea4335;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))}
+#pinFix .pfbar{position:fixed;left:0;right:0;bottom:0;z-index:600;background:var(--surface);box-shadow:0 -2px 10px rgba(60,64,67,.2);border-radius:20px 20px 0 0;padding:14px 12px calc(env(safe-area-inset-bottom,0px) + 14px);display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .stopdot{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #202124;display:grid;place-items:center;font-size:9px;font-weight:700;color:#202124}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -713,6 +718,18 @@ a.rowi{color:inherit}
   </div>
 </div>
 
+<div id="pinFix" hidden>
+  <div class="pfcard">
+    <div class="pft">Move the map so the pin sits exactly on the spot</div>
+    <div class="pfs" id="pfName"></div>
+  </div>
+  <div class="pfpin"><span class="ms fill">location_on</span></div>
+  <div class="pfbar">
+    <button class="pbtn outline big" id="pfCancel">Cancel</button>
+    <button class="pbtn outline big" id="pfHere"><span class="ms">my_location</span>Use my location</button>
+    <button class="pbtn primary big" id="pfSave">Save</button>
+  </div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -1979,6 +1996,7 @@ const VIEW_CFG = {
   list:{ top:true, chips:false, sheet:true },
   stats:{ top:true, chips:false, sheet:true },
   directions:{ dir:true, sheet:true },
+  pinfix:{ pinfix:true },
   search:{ search:true },
   nav:{ nav:true }
 };
@@ -1991,11 +2009,12 @@ function render(){
   $('dirTop').hidden = !c.dir;
   $('searchView').hidden = !c.search;
   ['navTop','navSide','navBar'].forEach(id => $(id).hidden = !c.nav);
+  $('pinFix').hidden = !c.pinfix;
   $('speedBox').hidden = !(c.nav && S.showSpeed);
   if (!c.nav) $('recenterPill').hidden = true;
   $('dirFab').hidden = !c.dirFab;
-  $('locBtn').hidden = !!c.nav || !!c.search;
-  $('layersBtn').hidden = !!c.nav || !!c.search;
+  $('locBtn').hidden = !!c.nav || !!c.search || !!c.pinfix;
+  $('layersBtn').hidden = !!c.nav || !!c.search || !!c.pinfix;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === v));
   setPill(v, d);
   renderChips(d.cat);
@@ -2005,7 +2024,7 @@ function render(){
   if (v !== 'directions' && v !== 'nav') routeLayer.clearLayers();
   syncPoi();
 
-  ({ explore:viewExplore, go:viewGo, saved:viewSaved, results:viewResults, place:viewPlace, list:viewList, stats:viewStats, directions:viewDirections, search:viewSearch, nav:() => {} })[v](d);
+  ({ explore:viewExplore, go:viewGo, saved:viewSaved, results:viewResults, place:viewPlace, list:viewList, stats:viewStats, pinfix:viewPinFix, directions:viewDirections, search:viewSearch, nav:() => {} })[v](d);
   requestAnimationFrame(placeFabs);
   updateCompass();
 }
@@ -2392,6 +2411,7 @@ function drawPlace(p){
       ${phone ? `<a class="pbtn outline" href="tel:${esc(phone.split(';')[0].replace(/\s/g,''))}">${ms('call')}Call</a>` : ''}
       <button class="pbtn outline ${isS ? 'saved' : ''}" id="aSave">${ms('bookmark')}${isS ? 'Saved' : 'Save'}</button>
       <button class="pbtn outline" id="aShare">${ms('share')}Share</button>
+      ${isS ? `<button class="pbtn outline" id="aFix">${ms('edit_location_alt')}Fix pin</button>` : ''}
       ${web ? `<a class="pbtn outline" href="${esc(/^https?:/.test(web) ? web : 'https://' + web)}" target="_blank" rel="noopener">${ms('public')}Website</a>` : ''}
       ${menu ? `<a class="pbtn outline" href="${esc(/^https?:/.test(menu) ? menu : 'https://' + menu)}" target="_blank" rel="noopener">${ms('menu_book')}Menu</a>` : ''}
     </div>
@@ -2418,6 +2438,7 @@ function drawPlace(p){
   $('aStart').onclick = () => quickStart(p);
   $('aSave').onclick = () => openSave(p);
   $('aShare').onclick = () => sharePlace(p);
+  if ($('aFix')) $('aFix').onclick = () => go('pinfix', { place:p });
   $('aCoords').onclick = () => copyText(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);
   if ($('photoStrip')) $('photoStrip').querySelectorAll('[data-ph]').forEach(b => b.onclick = () => openPhoto(p.media.photos, +b.dataset.ph));
   if ($('hrsToggle')) $('hrsToggle').onclick = () => { const h = $('hrsTable'); h.hidden = !h.hidden; $('hrsChev').textContent = h.hidden ? 'expand_more' : 'expand_less'; };
@@ -2432,6 +2453,33 @@ async function sharePlace(p){
   if (NATIVE){ NATIVE.share(`${text}\n${url}`); return; }
   try{ if (navigator.share){ await navigator.share({ title:p.name, text, url }); return; } }catch(e){ if (e.name === 'AbortError') return; }
   copyText(`${text}\n${url}`);
+}
+
+/* ---------- fix a saved place's pin ---------- */
+function viewPinFix(d){
+  const p = d.place;
+  $('pfName').textContent = [placeLabel(p), p.name, p.sub].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(' · ');
+  resetNorth();
+  map.setView([p.lat, p.lng], 19);
+  $('pfCancel').onclick = () => back();
+  $('pfHere').onclick = () => { if (st.pos) map.setView(st.pos.ll, 19); else toast('Still finding your location…'); };
+  $('pfSave').onclick = () => {
+    const c = map.getCenter();
+    const moved = hav([p.lat, p.lng], [c.lat, c.lng]);
+    relocateSaved(p, c.lat, c.lng);
+    toast(moved < 3 ? 'Pin kept where it was' : `Pin moved ${fmtDist(moved)}`);
+    p.lat = c.lat; p.lng = c.lng; // the place page underneath shows the new spot
+    back();
+  };
+}
+// move every saved copy of this place (Home, Work, labels, lists, recents)
+function relocateSaved(p, lat, lng){
+  const fix = x => (x && samePlace(x, p)) ? { ...x, lat, lng } : x;
+  saved.home = fix(saved.home); saved.work = fix(saved.work);
+  saved.labels = saved.labels.map(l => ({ ...l, place:fix(l.place) }));
+  for (const k in saved.lists) saved.lists[k] = saved.lists[k].map(fix);
+  persistSaved();
+  LS.set('recents', recents().map(fix));
 }
 
 /* ---------- save dialog ---------- */
@@ -2638,7 +2686,8 @@ Rules:
 - Lead with the answer. Round numbers. Say times like "3:30 PM".
 - Only use web search when the answer depends on current or local info (events, hours, news, weather, prices, what's open). For general knowledge, trivia, history, math, opinions or chit-chat, answer directly without searching. If a search finds nothing, say so briefly.
 - Never suggest the driver look at or type on the phone. If something needs reading, say you'll leave it on screen for when they're stopped.
-- You can't change the route yourself; if asked to go somewhere, tell them to say or search it and you'll keep them company.
+- You can look things up and control the trip with tools: find_nearby (list places near the user or ahead on the route), navigate_to (start a trip or change the destination), add_stop, remove_stop, set_route_options (avoid highways/tolls/ferries), end_navigation. Prefer find_nearby over web search for "what's nearby" questions. When the user clearly asks for one of these, call the tool right away without asking for confirmation. Only ask a quick question if the request is truly ambiguous.
+- After a tool runs, confirm in one short sentence using what the tool reported (place name, how far, time added or arrival time). If a tool fails, say so briefly and suggest an alternative.
 Current time: ${now.toLocaleString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
 User location: ${place && place.city ? `near ${place.city}, ${place.region}` : 'unknown'}${st.pos ? ` (${st.pos.ll[0].toFixed(4)}, ${st.pos.ll[1].toFixed(4)})` : ''}. Speed about ${Math.round((st.pos?.spd || 0) * 2.237)} mph.
 Trip: ${tripContext()}
@@ -2649,7 +2698,8 @@ async function askClaude(question, hooks = {}){
   const tools = S.asstSearch ? [{ type:'web_search_20250305', name:'web_search', max_uses:2,
     ...(place && (place.city || place.country) ? { user_location:{ type:'approximate', ...(place.city ? { city:place.city } : {}), ...(place.region ? { region:place.region } : {}), ...(place.country ? { country:place.country } : {}), timezone:Intl.DateTimeFormat().resolvedOptions().timeZone } } : {}) }] : undefined;
   const messages = [...ASK.history.slice(-6), { role:'user', content:question }];
-  const body = { model:S.claudeModel, max_tokens:400, stream:true, system:systemPrompt(place), messages, ...(tools ? { tools } : {}) };
+  const allTools = [...(tools || []), ...TRIP_TOOLS];
+  const body = { model:S.claudeModel, max_tokens:500, stream:true, system:systemPrompt(place), messages, tools:allTools };
   const call = b => fetchTimeout('https://api.anthropic.com/v1/messages', 60000, {
     method:'POST',
     headers:{ 'content-type':'application/json', 'x-api-key':S.claudeKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
@@ -2658,7 +2708,7 @@ async function askClaude(question, hooks = {}){
   let r = await call(body);
   if (r.status === 400 && tools){ // model or account without web search: try again without it
     const t = await r.text();
-    if (/web_search|tool/i.test(t)){ delete body.tools; r = await call(body); }
+    if (/web_search/i.test(t)){ body.tools = TRIP_TOOLS; r = await call(body); }
     else throw new Error('Request error: ' + t.slice(0, 120));
   }
   if (r.status === 401) throw new Error('Your Claude API key was rejected. Check it in Settings.');
@@ -2666,39 +2716,69 @@ async function askClaude(question, hooks = {}){
   if (r.status === 529 || r.status >= 500) throw new Error('Claude is busy right now. Try again shortly.');
   if (!r.ok){ let m = `Claude error ${r.status}`; try{ m = (await r.json()).error?.message || m; }catch{} throw new Error(m); }
 
-  // Read the streamed answer so we know the moment she starts a web search
-  const blocks = [];
-  const handle = (ev) => {
-    if (ev.type === 'content_block_start'){
-      blocks[ev.index] = { ...ev.content_block, text: ev.content_block.text || '', citations: [] };
-      if (ev.content_block.type === 'server_tool_use' && hooks.onSearch) hooks.onSearch();
-    } else if (ev.type === 'content_block_delta'){
-      const b = blocks[ev.index]; if (!b) return;
-      if (ev.delta.type === 'text_delta'){ b.text += ev.delta.text; hooks.onText && hooks.onText(); }
-      else if (ev.delta.type === 'citations_delta' && ev.delta.citation) b.citations.push(ev.delta.citation);
-    } else if (ev.type === 'error'){ throw new Error(ev.error?.message || 'Claude stream error'); }
-  };
-  if (r.body && r.body.getReader){
-    const reader = r.body.getReader(), dec = new TextDecoder();
-    let buf = '';
-    for (;;){
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream:true });
-      let k;
-      while ((k = buf.indexOf('\n\n')) >= 0){
-        const chunk = buf.slice(0, k); buf = buf.slice(k + 2);
-        const data = chunk.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('');
-        if (!data) continue;
-        try{ handle(JSON.parse(data)); }catch(e){ if (/stream error|Claude/.test(e.message)) throw e; }
-      }
+  let blocks = [], stopReason = '';
+  for (let round = 0; round < 4; round++){
+    if (round > 0){
+      r = await call(body);
+      if (!r.ok){ let m = `Claude error ${r.status}`; try{ m = (await r.json()).error?.message || m; }catch{} throw new Error(m); }
     }
-  } else {
-    const txt = await r.text();
-    txt.split('\n\n').forEach(chunk => { const data = chunk.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join(''); if (data) try{ handle(JSON.parse(data)); }catch{} });
+    blocks = []; stopReason = '';
+    // Read the streamed answer so we know the moment she starts a web search
+    const handle = (ev) => {
+      if (ev.type === 'content_block_start'){
+        blocks[ev.index] = { ...ev.content_block, text: ev.content_block.text || '', citations: [], json:'' };
+        if (ev.content_block.type === 'server_tool_use' && hooks.onSearch) hooks.onSearch();
+      } else if (ev.type === 'content_block_delta'){
+        const b = blocks[ev.index]; if (!b) return;
+        if (ev.delta.type === 'text_delta'){ b.text += ev.delta.text; hooks.onText && hooks.onText(); }
+        else if (ev.delta.type === 'citations_delta' && ev.delta.citation) b.citations.push(ev.delta.citation);
+        else if (ev.delta.type === 'input_json_delta') b.json += ev.delta.partial_json || '';
+      } else if (ev.type === 'content_block_stop'){
+        const b = blocks[ev.index];
+        if (b && b.type === 'tool_use'){ try{ b.input = b.json ? JSON.parse(b.json) : (b.input || {}); }catch{ b.input = {}; } }
+      } else if (ev.type === 'message_delta'){
+        if (ev.delta && ev.delta.stop_reason) stopReason = ev.delta.stop_reason;
+      } else if (ev.type === 'error'){ throw new Error(ev.error?.message || 'Claude stream error'); }
+    };
+    if (r.body && r.body.getReader){
+      const reader = r.body.getReader(), dec = new TextDecoder();
+      let buf = '';
+      for (;;){
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream:true });
+        let k;
+        while ((k = buf.indexOf('\n\n')) >= 0){
+          const chunk = buf.slice(0, k); buf = buf.slice(k + 2);
+          const data = chunk.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('');
+          if (!data) continue;
+          try{ handle(JSON.parse(data)); }catch(e){ if (/stream error|Claude/.test(e.message)) throw e; }
+        }
+      }
+    } else {
+      const txt = await r.text();
+      txt.split('\n\n').forEach(chunk => { const data = chunk.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join(''); if (data) try{ handle(JSON.parse(data)); }catch{} });
+    }
+
+    if (stopReason !== 'tool_use') break;
+    // run the trip tools she asked for, then let her confirm in words
+    const done_ = blocks.filter(Boolean);
+    const uses = done_.filter(b => b.type === 'tool_use');
+    if (!uses.length) break;
+    hooks.onTool && hooks.onTool(uses[0].name);
+    const results = [];
+    for (const u of uses){
+      let out, err = false;
+      try{ out = await runTripTool(u.name, u.input || {}); }catch(e){ out = e.message || 'That did not work.'; err = true; }
+      results.push({ type:'tool_result', tool_use_id:u.id, content:String(out), ...(err ? { is_error:true } : {}) });
+    }
+    const assistantContent = done_.filter(b => b.type === 'text' || b.type === 'tool_use')
+      .map(b => b.type === 'text' ? { type:'text', text:b.text || ' ' } : { type:'tool_use', id:b.id, name:b.name, input:b.input || {} })
+      .filter(b => b.type !== 'text' || b.text.trim());
+    body.messages = [...body.messages, { role:'assistant', content:assistantContent }, { role:'user', content:results }];
   }
   const list = blocks.filter(Boolean);
-  let lastTool = -1; list.forEach((b, i) => { if (b.type === 'web_search_tool_result' || b.type === 'server_tool_use') lastTool = i; });
+  let lastTool = -1; list.forEach((b, i) => { if (b.type === 'web_search_tool_result' || b.type === 'server_tool_use' || b.type === 'tool_use') lastTool = i; });
   let text = list.slice(lastTool + 1).filter(b => b.type === 'text').map(b => b.text).join('').trim();
   if (!text) text = list.filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
   text = text.replace(/[*_#`>]/g, '').replace(/\[(\d+)\]/g, '').replace(/\s+/g, ' ').trim();
@@ -2708,6 +2788,181 @@ async function askClaude(question, hooks = {}){
   ASK.history = ASK.history.slice(-6);
   return { text, sources:sources.slice(0, 3), searched: lastTool >= 0 };
 }
+
+/* ---------- trip control tools she can use ---------- */
+const TRIP_TOOLS = [
+  { name:'find_nearby', description:'Look up places near the user (or ahead on the route while navigating) and get a numbered list with distance and open hours. Use for "find something to eat", "any coffee around here?", "what gas stations are near me", "is there a Target nearby". Also shows them on the map. Read back the best 2 or 3 briefly.',
+    input_schema:{ type:'object', properties:{ what:{ type:'string', description:'Kind of place or name, e.g. "food", "tacos", "coffee", "gas", "Target"' }, along_route:{ type:'boolean', description:'Only places ahead on the current route (default true while navigating)' } }, required:['what'] } },
+  { name:'navigate_to', description:'Start navigation to a place, or change the current destination. Use for "take me to…", "go to…", "navigate to…". Accepts a place name, address, saved label (Home, Work, etc.), a kind of place, or result_number to pick from the last find_nearby list ("take me to the second one").',
+    input_schema:{ type:'object', properties:{ destination:{ type:'string', description:'What to search for, e.g. "In-N-Out", "LA Convention Center", "home", "nearest gas station"' }, result_number:{ type:'integer', description:'Pick this item (1-based) from the last find_nearby results instead of searching' }, mode:{ type:'string', enum:['car','walk','bike'] } } } },
+  { name:'add_stop', description:'Add a stop to the current trip. For a kind of place it picks the next good one ahead on the route. Can also use result_number from the last find_nearby list. Only works while navigating.',
+    input_schema:{ type:'object', properties:{ place:{ type:'string', description:'Place name, address or kind of place, e.g. "gas station", "Starbucks", "a restroom"' }, result_number:{ type:'integer', description:'Pick this item (1-based) from the last find_nearby results' } } } },
+  { name:'remove_stop', description:'Remove a stop from the current trip. With no name, removes the next stop.',
+    input_schema:{ type:'object', properties:{ name:{ type:'string', description:'Part of the stop name to remove (optional)' } } } },
+  { name:'set_route_options', description:'Change route preferences and reroute: avoid highways, tolls or ferries (true = avoid, false = allow).',
+    input_schema:{ type:'object', properties:{ avoid_highways:{ type:'boolean' }, avoid_tolls:{ type:'boolean' }, avoid_ferries:{ type:'boolean' } } } },
+  { name:'end_navigation', description:'Stop the current navigation.', input_schema:{ type:'object', properties:{} } }
+];
+const CAT_WORDS = [
+  ['gas', /\b(gas|fuel|petrol|gas station)\b/], ['coffee', /\b(coffee|cafe|café|espresso)\b/], ['food', /\b(food|restaurants?|eat|eats|lunch|dinner|breakfast|brunch|hungry|bite|meal|snack|snacks)\b/],
+  ['grocery', /\b(grocer(y|ies)|supermarket)\b/], ['ev', /\b(ev|charger|charging)\b/], ['parking', /\bparking\b/], ['restroom', /\b(restroom|bathroom|toilet|washroom)\b/],
+  ['pharmacy', /\b(pharmacy|drugstore)\b/], ['atm', /\b(atm|cash machine|bank)\b/], ['hotels', /\b(hotel|motel)\b/]
+];
+const FILLER = /\b(the|a|an|some|something|anything|somewhere|nearest|closest|nearby|near|around|here|close|by|next|good|great|best|cheap|cheapest|quick|place|places|station|stations|stop|spot|spots|one|ones|on|way|along|for|to|me|my|find|show|get|grab|go|want|wanna|need|i|im|i'm|let's|lets|can|could|you|please|where|what|is|are|there|any|options|of|in|area|route|with|at)\b/g;
+function catFor(q){
+  const t = q.toLowerCase();
+  const hit = CAT_WORDS.find(([, re]) => re.test(t)); if (!hit) return null;
+  const leftover = t.replace(new RegExp(hit[1].source, 'g'), ' ').replace(FILLER, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+  return leftover ? null : CATS.find(c => c.id === hit[0]);   // "Shell gas station" stays a name search
+}
+function savedByLabel(q){
+  const t = q.toLowerCase().replace(/\b(my|the|to)\b/g, '').trim();
+  if (/^home$/.test(t) && saved.home) return { ...saved.home, name: saved.home.name || 'Home' };
+  if (/^work$/.test(t) && saved.work) return { ...saved.work, name: saved.work.name || 'Work' };
+  const l = saved.labels.find(x => x.label.toLowerCase() === t); return l ? { ...l.place } : null;
+}
+async function findPlace(q){
+  const sv = savedByLabel(q); if (sv) return sv;
+  const cat = catFor(q);
+  if (cat){
+    const items = await categorySearch(cat);
+    const named = items.filter(p => p.tags?.name || p.name);
+    if (!named.length) throw new Error(`I couldn't find any ${cat.label.toLowerCase()} nearby.`);
+    return named.sort((a, b) => a.dist - b.dist)[0];
+  }
+  const items = await textSearch(q);
+  if (!items.length) throw new Error(`I couldn't find "${q}".`);
+  return items[0];
+}
+async function findAlongRoute(cat){
+  const n = st.nav; if (!n || !st.pos) return [];
+  const pr = projectOn(n, st.pos.ll, false), from = pr ? pr.along : 0;
+  const to = Math.min(n.total, from + 40000);
+  const pts = []; let hint = 0;
+  for (let a = from; a <= to; a += 800){ const r_ = pointAt(n, a, hint); hint = r_.i; pts.push(r_.p); }
+  if (pts.length < 2) pts.push(pointAt(n, to).p);
+  const poly = pts.map(p => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join(',');
+  const j = await overpass(`[out:json][timeout:20];(${cat.q}(around:600,${poly}););out center 60;`);
+  let items = elementsToPlaces(j.elements);
+  items.forEach(p => { const q = projectOn(n, [p.lat, p.lng], false); p.ahead = q ? q.along - from : 0; p.off = q ? q.dist : 0; });
+  return items.filter(p => p.ahead > 300).sort((a, b) => (a.ahead + a.off * 4) - (b.ahead + b.off * 4));
+}
+function remainingSecs(n){
+  const pr = projectOn(n, st.pos.ll, false); const left = pr ? n.total - pr.along : n.total;
+  return n.live ? n.live.secs * (left / n.live.left) : n.route.duration * (left / n.total);
+}
+async function rerouteWith(n){
+  const p = n.plan;
+  const pts = [st.pos.ll, ...p.stops.slice(p.passed).map(x => [x.lat, x.lng]), [p.dest.lat, p.dest.lng]];
+  const [route] = await getRoutes(pts, p.mode, false);
+  if (st.nav !== n) throw new Error('The trip changed while I was working on it.');
+  const n2 = applyNewRoute(n, route);
+  navTick();
+  return n2;
+}
+function fromLast(num){
+  const list = ASK.lastResults || [];
+  const p = list[(num | 0) - 1];
+  if (!p) throw new Error(list.length ? `There were only ${list.length} results in the last list.` : 'There is no recent list of places to pick from.');
+  return p;
+}
+async function runTripTool(name, input){
+  if (!st.pos && name !== 'end_navigation') throw new Error("I don't have your GPS location yet.");
+  if (name === 'find_nearby'){
+    const what = String(input.what || 'food');
+    const cat = catFor(what) || catFor(what + ' food');
+    const along = st.nav && input.along_route !== false;
+    let items;
+    if (along && cat) items = await findAlongRoute(cat);
+    else if (cat) items = await categorySearch(cat);
+    else items = await textSearch(what);
+    if (!items.length && !cat){ const c2 = CAT_WORDS.find(([, re]) => re.test(what.toLowerCase())); if (c2) items = await categorySearch(CATS.find(c => c.id === c2[0])); }
+    items = items.filter(p => p.name && p.name !== 'Unnamed place');
+    if (!along) items.sort((a, b) => (a.dist ?? hav(st.pos.ll, [a.lat, a.lng])) - (b.dist ?? hav(st.pos.ll, [b.lat, b.lng])));
+    items = items.slice(0, 6);
+    if (!items.length) throw new Error(`Nothing found for "${what}" ${along ? 'ahead on the route' : 'nearby'}.`);
+    ASK.lastResults = items;
+    // show them: as a results list when browsing, as pins while driving
+    if (st.nav){ resultsLayer.clearLayers(); items.forEach((p, i) => L.marker([p.lat, p.lng], { icon:pinIcon(p.icon || 'location_on') }).addTo(resultsLayer)); }
+    else { const d = { title: cat ? cat.label : what, cat: cat ? cat.id : undefined, items, fitted:false }; if (curView() === 'results') replace('results', d); else go('results', d); }
+    return items.map((p, i) => {
+      const h = p.tags ? hoursStatus(parseOH(p.tags.opening_hours)) : null;
+      const dist = p.ahead != null ? `${fmtDist(p.ahead)} ahead on the route` : fmtDist(hav(st.pos.ll, [p.lat, p.lng])) + ' away';
+      return `${i + 1}. ${p.name}${p.cat ? ' (' + p.cat + ')' : ''}, ${dist}${h ? ', ' + h.text : ''}`;
+    }).join('\n');
+  }
+  if (name === 'navigate_to'){
+    const place = input.result_number ? fromLast(input.result_number) : await findPlace(String(input.destination || ''));
+    const mode = input.mode || (st.nav ? st.nav.plan.mode : S.mode) || 'car';
+    const routes = await getRoutes([st.pos.ll, [place.lat, place.lng]], mode, false);
+    const route = routes[0];
+    if (st.nav){
+      const n = st.nav;
+      n.plan.dest = slim(place); n.plan.stops = []; n.plan.passed = 0;
+      const n2 = applyNewRoute(n, route);
+      n2.plan.dest = slim(place);
+      addRecent(place);
+      navTick();
+    } else {
+      const dir = { from:null, stops:[], to:slim(place), mode, routes:[route], sel:0 };
+      startNav(dir, false, { quiet:true });
+    }
+    const eta = fmtClock(new Date(Date.now() + route.duration * 1000));
+    return `Now navigating to ${place.name}${place.sub ? ' (' + place.sub + ')' : ''}. ${fmtDist(route.distance)}, about ${fmtDur(route.duration)}, arriving around ${eta}.${route._tt && route._tt.delay > 120 ? ` Traffic adds about ${fmtDur(route._tt.delay)}.` : ''}`;
+  }
+  if (name === 'add_stop'){
+    const n = st.nav; if (!n) throw new Error("We're not navigating right now, so there's no route to add a stop to.");
+    const q = String(input.place || '');
+    const before = remainingSecs(n);
+    let place, ahead = null;
+    const cat = input.result_number ? null : catFor(q);
+    if (input.result_number){ place = fromLast(input.result_number); const pr_ = projectOn(n, [place.lat, place.lng], false); if (pr_) ahead = Math.max(0, pr_.along - (projectOn(n, st.pos.ll, false)?.along || 0)); }
+    else if (cat){
+      const items = await findAlongRoute(cat);
+      if (!items.length) throw new Error(`No ${cat.label.toLowerCase()} found in the next 25 miles of the route.`);
+      place = items[0]; ahead = place.ahead;
+    } else {
+      const items = await textSearch(q);
+      if (!items.length) throw new Error(`I couldn't find "${q}".`);
+      items.forEach(p => { const pr_ = projectOn(n, [p.lat, p.lng], false); p._off = pr_ ? pr_.dist : 1e9; });
+      place = items.sort((a, b) => a._off - b._off)[0];
+    }
+    n.plan.stops.splice(n.plan.passed, 0, slim(place));
+    if (st.trip) st.trip.stops = (st.trip.stops || 0) + 1;
+    const n2 = await rerouteWith(n);
+    const added = Math.max(0, remainingSecs(n2) - before);
+    return `Added a stop at ${place.name}${place.sub ? ' (' + place.sub + ')' : ''}${ahead != null ? `, ${fmtDist(ahead)} ahead` : ''}. Adds about ${fmtDur(added)}.`;
+  }
+  if (name === 'remove_stop'){
+    const n = st.nav; if (!n) throw new Error("We're not navigating right now.");
+    const left = n.plan.stops.slice(n.plan.passed);
+    if (!left.length) throw new Error('There are no stops left on this trip.');
+    const want = String(input.name || '').toLowerCase();
+    let idx = want ? left.findIndex(x => (x.name || '').toLowerCase().includes(want)) : 0;
+    if (idx < 0) idx = 0;
+    const [gone] = n.plan.stops.splice(n.plan.passed + idx, 1);
+    await rerouteWith(n);
+    return `Removed the stop at ${gone.name}.`;
+  }
+  if (name === 'set_route_options'){
+    if (typeof input.avoid_highways === 'boolean') S.avoidHw = input.avoid_highways;
+    if (typeof input.avoid_tolls === 'boolean') S.avoidToll = input.avoid_tolls;
+    if (typeof input.avoid_ferries === 'boolean') S.avoidFerry = input.avoid_ferries;
+    save();
+    if (!st.nav) return 'Saved those route preferences for the next trip.';
+    const n = st.nav, before = remainingSecs(n);
+    const n2 = await rerouteWith(n);
+    const diff = remainingSecs(n2) - before;
+    return `Rerouted${S.avoidHw ? ', avoiding highways' : ''}${S.avoidToll ? ', avoiding tolls' : ''}. ${Math.abs(diff) < 60 ? 'About the same time.' : diff > 0 ? `About ${fmtDur(diff)} longer.` : `About ${fmtDur(-diff)} faster.`}`;
+  }
+  if (name === 'end_navigation'){
+    if (!st.nav) return 'There was no active navigation.';
+    endNav(false);
+    return 'Navigation ended.';
+  }
+  throw new Error('Unknown tool ' + name);
+}
+
 function askCard(state, html){
   const c = $('askCard');
   c.hidden = false; c.dataset.state = state;
@@ -2763,7 +3018,8 @@ async function handleQuestion(q){
   try{
     const ans = await askClaude(q, {
       onSearch: () => { ack(pickAny(ackLines())); const m = $('askBody')?.querySelector('.askmsg'); if (m) m.innerHTML = `<span class="spin"></span>${esc(assistantName())} is looking it up…`; },
-      onText: () => { gotText = true; }
+      onText: () => { gotText = true; },
+      onTool: nm => { const m = $('askBody')?.querySelector('.askmsg'); if (m) m.innerHTML = `<span class="spin"></span>${nm === 'navigate_to' ? 'Finding the route…' : nm === 'add_stop' ? 'Finding a stop on your route…' : 'Updating your trip…'}`; }
     });
     clearTimeout(slow);
     if (ASK.state !== 'thinking') return;
@@ -2943,7 +3199,7 @@ async function quickStart(p){
 async function wakeOn(){ try{ st.wake = await navigator.wakeLock?.request('screen'); }catch{} }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && st.nav) wakeOn(); });
 
-function startNav(dir, sim){
+function startNav(dir, sim, opts = {}){
   const route = dir.routes[dir.sel || 0];
   const plan = { dest:dir.to, stops:dir.stops.slice(), mode:dir.mode || 'car', passed:0 };
   if (!sim && !st.pos){ toast('Waiting for your GPS location'); return; }
@@ -2964,7 +3220,7 @@ function startNav(dir, sim){
   $('spdU').textContent = S.units === 'metric' ? 'km/h' : 'mph';
   n.startT = Date.now();
   st.trip = { start:Date.now(), dist:0, last:null, dest:plan.dest, sim:!!sim, stops:0 };
-  say(line('start', instruction(n.steps[0]), plan.dest.name), true, 'happy');
+  if (!opts.quiet) say(line('start', instruction(n.steps[0]), plan.dest.name), true, 'happy');
   n.announced[0] = { far:1, mid:1, now:1 };
   addRecent(plan.dest);
   if (sim){
