@@ -5703,12 +5703,29 @@ $('ytGo').onclick = async () => {
   const prompt = `Transcribe only what ${who} (the main streamer/host) says in this part of the video, word for word, including fillers like "um", "mm", laughs as [laughs], and slang. Skip game audio, music, chat being read in a robotic way, and other people's voices. Plain text, no timestamps. At the very end, add one line starting with "DELIVERY NOTES:" describing how they sound (energy, pace, tone, how they laugh or react).`;
   const make = clip => ({ contents:[{ role:'user', parts:[ { file_data:{ file_uri:url }, ...(clip ? { video_metadata:{ start_offset:`${start}s`, end_offset:`${start + len}s` } } : {}) }, { text:prompt } ] }],
     generationConfig:{ temperature:0.2, maxOutputTokens:16000, mediaResolution:'MEDIA_RESOLUTION_LOW' } });
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.geminiModel)}:generateContent?key=${encodeURIComponent(S.geminiKey.trim())}`;
+  const ep = m => `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(S.geminiKey.trim())}`;
+  const msgOf = t => t.match(/"message":\s*"([^"]+)/)?.[1] || t.slice(0, 160);
+  const busy = (st, t) => st === 503 || st === 500 || /high demand|overloaded|unavailable|try again later/i.test(t);
+  // Try your chosen model a few times, then the other Gemini model, waiting a bit between tries
+  const models = [S.geminiModel, ...[...$('geminiModel').options].map(o => o.value).filter(m => m !== S.geminiModel)];
+  const plan = [[models[0], 0], [models[0], 8], [models[1], 3], [models[0], 20], [models[1], 20]].filter(x => x[0]);
+  const sleep = s => new Promise(res => setTimeout(res, s * 1000));
   try{
-    let r = await fetchTimeout(endpoint, 240000, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(make(true)) });
-    if (r.status === 400){ const t = await r.text(); if (/media_?resolution/i.test(t)){ const b = make(true); delete b.generationConfig.mediaResolution; r = await fetchTimeout(endpoint, 240000, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(b) }); } else throw new Error(ytErr(t.match(/"message":\s*"([^"]+)/)?.[1] || t.slice(0, 160))); }
-    if (r.status === 429) throw new Error('Gemini free limit reached for now. Try a shorter part, or again later.');
-    if (!r.ok){ const t = await r.text(); throw new Error(ytErr(t.match(/"message":\s*"([^"]+)/)?.[1] || 'error ' + r.status)); }
+    let r = null, lastMsg = '', noRes = false;
+    for (let i = 0; i < plan.length; i++){
+      const [model, wait] = plan[i];
+      if (wait){ for (let s = wait; s > 0; s--){ $('styleStatus').textContent = `Gemini is busy right now. Trying again in ${s}s… (${i + 1}/${plan.length})`; await sleep(1); } }
+      $('styleStatus').textContent = i ? `Trying again${model !== models[0] ? ' with the backup model' : ''}… (can take a minute)` : 'Gemini is watching the video… (can take a minute)';
+      const b = make(true); if (noRes) delete b.generationConfig.mediaResolution;
+      r = await fetchTimeout(ep(model), 240000, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(b) });
+      if (r.ok) break;
+      const t = await r.text(); lastMsg = msgOf(t);
+      if (r.status === 400 && /media_?resolution/i.test(t) && !noRes){ noRes = true; i--; continue; }
+      if (busy(r.status, t)) continue;
+      if (r.status === 429) throw new Error('Gemini free limit reached for now. Try a shorter part, or again in a few minutes.');
+      throw new Error(ytErr(lastMsg || 'error ' + r.status));
+    }
+    if (!r.ok) throw new Error("Google's Gemini servers are overloaded right now (not a problem with your key or the video). Give it 10–15 minutes and tap the button again.");
     const j = await r.json();
     const txt = (j.candidates?.[0]?.content?.parts || []).map(p_ => p_.text || '').join('').trim();
     if (!txt) throw new Error("Gemini couldn't get any speech from that part. Try a different stretch.");
