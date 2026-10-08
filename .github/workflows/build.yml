@@ -3,6 +3,7 @@ name: Build app
 on:
   push:
     branches: [ main, master ]
+    # Website-only updates (index.html) don't need a new app; the app loads the website.
     paths-ignore:
       - 'app/src/main/assets/**'
       - 'README.md'
@@ -30,13 +31,13 @@ jobs:
         run: gradle :app:assembleRelease --no-daemon --stacktrace
 
       - name: Name the file
-        run: cp app/build/outputs/apk/release/app-release.apk WaypointVoice-${{ github.run_number }}.apk
+        run: cp app/build/outputs/apk/release/app-release.apk Shotgun-${{ github.run_number }}.apk
 
       - name: Publish for download
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          name: Waypoint Voice build ${{ github.run_number }}
+          name: Shotgun build ${{ github.run_number }}
           body: Open this page on your phone and tap the .apk file below to install or update.
-          files: WaypointVoice-${{ github.run_number }}.apk
+          files: Shotgun-${{ github.run_number }}.apk
           make_latest: true
