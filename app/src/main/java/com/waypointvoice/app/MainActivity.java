@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Hosts the Waypoint Voice web app (app/src/main/assets/index.html) and gives it
+ * Hosts the Shotgun web app (app/src/main/assets/index.html) and gives it
  * native powers through NativeBridge: background GPS, music controls, ducked voice audio.
  */
 public class MainActivity extends Activity {

@@ -50,7 +50,7 @@ public class CarReceiver extends BroadcastReceiver {
             Notification n = new Notification.Builder(c, CHANNEL)
                     .setSmallIcon(R.drawable.ic_stat_nav)
                     .setContentTitle("Connected to " + name)
-                    .setContentText("Tap to open Waypoint Voice")
+                    .setContentText("Tap to open Shotgun")
                     .setAutoCancel(true)
                     .setContentIntent(pi)
                     .build();

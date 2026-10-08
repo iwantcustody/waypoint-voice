@@ -609,7 +609,7 @@ public class NativeBridge {
     public void copy(String text) {
         main.post(() -> {
             ClipboardManager cm = (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
-            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Waypoint Voice", text));
+            if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Shotgun", text));
         });
     }
 
@@ -659,7 +659,7 @@ public class NativeBridge {
             open.setAction(Intent.ACTION_MAIN);
             open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             ShortcutInfo info = new ShortcutInfo.Builder(ctx, "custom-" + System.currentTimeMillis())
-                    .setShortLabel(label == null || label.isEmpty() ? "Waypoint Voice" : label)
+                    .setShortLabel(label == null || label.isEmpty() ? "Shotgun" : label)
                     .setIcon(Icon.createWithAdaptiveBitmap(bmp))
                     .setIntent(open)
                     .build();
