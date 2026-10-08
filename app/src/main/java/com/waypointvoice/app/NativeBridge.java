@@ -8,7 +8,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ShortcutInfo;
+import android.content.pm.ShortcutManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.Icon;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -510,6 +514,62 @@ public class NativeBridge {
             ClipboardManager cm = (ClipboardManager) ctx.getSystemService(Context.CLIPBOARD_SERVICE);
             if (cm != null) cm.setPrimaryClip(ClipData.newPlainText("Waypoint Voice", text));
         });
+    }
+
+    /* ======================= App icon ======================= */
+    static final String[] ICONS = { "Default", "Saba", "Midnight", "Sakura" };
+
+    ComponentName iconAlias(String name) {
+        return new ComponentName(ctx.getPackageName(), "com.waypointvoice.app.Icon" + name);
+    }
+
+    @JavascriptInterface
+    public String getAppIcon() {
+        PackageManager pm = ctx.getPackageManager();
+        for (String n : ICONS) {
+            int st = pm.getComponentEnabledSetting(iconAlias(n));
+            boolean on = st == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                    || (st == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT && n.equals("Default"));
+            if (on) return n;
+        }
+        return "Default";
+    }
+
+    /** Switches the launcher icon. Turns the new style on first so the app always has an icon. */
+    @JavascriptInterface
+    public void setAppIcon(String name) {
+        boolean known = false;
+        for (String n : ICONS) if (n.equals(name)) known = true;
+        if (!known) return;
+        PackageManager pm = ctx.getPackageManager();
+        pm.setComponentEnabledSetting(iconAlias(name), PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP);
+        for (String n : ICONS) {
+            if (n.equals(name)) continue;
+            pm.setComponentEnabledSetting(iconAlias(n), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+        }
+    }
+
+    /** Adds an extra home-screen icon using your own picture (Android asks you to confirm). */
+    @JavascriptInterface
+    public boolean pinShortcut(String label, String b64) {
+        try {
+            ShortcutManager sm = ctx.getSystemService(ShortcutManager.class);
+            if (sm == null || !sm.isRequestPinShortcutSupported()) return false;
+            byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
+            Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+            if (bmp == null) return false;
+            Intent open = new Intent(ctx, MainActivity.class);
+            open.setAction(Intent.ACTION_MAIN);
+            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ShortcutInfo info = new ShortcutInfo.Builder(ctx, "custom-" + System.currentTimeMillis())
+                    .setShortLabel(label == null || label.isEmpty() ? "Waypoint Voice" : label)
+                    .setIcon(Icon.createWithAdaptiveBitmap(bmp))
+                    .setIntent(open)
+                    .build();
+            return sm.requestPinShortcut(info, null);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /* ======================= Cleanup ======================= */
