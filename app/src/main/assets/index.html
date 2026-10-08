@@ -285,6 +285,41 @@ a.rowi{color:inherit}
 .limit.metric b{font-size:20px}
 .simpill{background:var(--surface);color:var(--muted);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:500;box-shadow:var(--shadow)}
 
+/* ---------- settings menu ---------- */
+.setmenu{display:grid;padding:4px 0 8px}
+.setrow{display:flex;align-items:center;gap:16px;min-height:68px;padding:10px 16px 10px 20px;text-align:left;width:100%;color:var(--ink)}
+.setrow + .setrow{border-top:1px solid var(--line)}
+.setrow:active{background:var(--surface2)}
+.setrow .si{width:40px;height:40px;border-radius:50%;background:var(--blue-soft);color:var(--blue-dark);display:grid;place-items:center;flex:none}
+.setrow .st{flex:1;min-width:0;display:grid;gap:2px}
+.setrow .st b{font-weight:500;font-size:16px}
+.setrow .st span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.setrow > .ms:last-child{color:var(--muted)}
+.spage{gap:18px;padding-bottom:20px}
+.spage .check{padding:10px 0;min-height:44px}
+.spage .check input{width:22px;height:22px}
+.spage .seg button{padding:12px 6px}
+.spage .btnrow{gap:12px}
+.spage h3{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.fld input.locked{color:var(--muted);background:var(--surface2)}
+details.adv{border:1px solid var(--line);border-radius:14px;margin-top:6px}
+details.adv summary{padding:14px 16px;font-weight:500;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.adv summary::-webkit-details-marker{display:none}
+details.adv summary::after{content:"expand_more";font-family:'Material Symbols Outlined';font-size:22px;color:var(--muted);transition:transform .2s}
+details.adv[open] summary::after{transform:rotate(180deg)}
+.advbody{display:grid;gap:16px;padding:4px 16px 16px}
+.pbtn.danger{color:var(--red);border-color:color-mix(in srgb, var(--red) 40%, var(--line))}
+.pbtn.danger,.spage .pbtn.outline{height:44px;border-radius:22px}
+.pbtn.confirm{background:var(--red)!important;color:#fff!important;border-color:var(--red)!important}
+.slot .sx.confirm{background:var(--red);color:#fff}
+.icons{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.icn{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;font-weight:500;color:var(--ink);padding:8px 0;border-radius:14px;border:2px solid transparent}
+.icn[aria-pressed="true"]{border-color:var(--blue);background:var(--blue-soft)}
+.ip{position:relative;width:52px;height:52px;border-radius:50%;display:block;box-shadow:var(--shadow)}
+.ip i{position:absolute;left:50%;top:50%;width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-bottom:24px solid #fff;transform:translate(-50%,-50%)}
+.ip b{position:absolute;left:50%;top:7px;width:16px;height:7px;transform:translateX(-50%);background:#FCD98A;clip-path:polygon(0 100%,0 0,25% 55%,50% 0,75% 55%,100% 0,100% 100%)}
+.buddy.idle{right:auto;left:10px}
+
 /* ---------- modals ---------- */
 .modal{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.4);display:flex;align-items:flex-end}
 .panel{background:var(--surface);width:100%;max-height:92%;overflow:auto;border-radius:28px 28px 0 0;padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 16px)}
@@ -508,10 +543,11 @@ a.rowi{color:inherit}
       <button class="lcard" data-layer="default"><span class="lprev"><span class="ms">map</span></span>Default</button>
       <button class="lcard" data-layer="satellite"><span class="lprev"><span class="ms">satellite_alt</span></span>Satellite</button>
       <button class="lcard" data-layer="terrain"><span class="lprev"><span class="ms">terrain</span></span>Terrain</button>
+      <button class="lcard" data-layer="detailed"><span class="lprev"><span class="ms">storefront</span></span>Detailed</button>
     </div>
     <div class="pgroup"><label class="check"><input type="checkbox" id="layTraffic">Live traffic colors on roads (needs a TomTom key)</label></div>
     <div class="pgroup"><label class="check"><input type="checkbox" id="layPoi">Show businesses and places when zoomed in</label></div>
-    <div class="pgroup"><div class="small">Add a free TomTom key in Settings → Live traffic to see traffic colors and get traffic-aware routes.</div></div>
+    <div class="pgroup"><div class="small" id="layNote">Add a free TomTom key in Settings → Live traffic for the clean Google-style map, traffic colors and traffic-aware routes. Detailed shows every shop and path.</div></div>
   </div>
 </div>
 
@@ -609,11 +645,12 @@ a.rowi{color:inherit}
 </div>
 
 <!-- settings -->
-<div class="modal" id="settings" hidden>
+<div class="modal" id="settings" data-sticky="1" hidden>
   <div class="panel" role="dialog" aria-labelledby="setTitle">
-    <header><h2 id="setTitle">Settings</h2><button class="ibtn" id="closeSettings" aria-label="Close"><span class="ms">close</span></button></header>
-    <div class="pgroup">
-      <h3>Profile</h3>
+    <header><button class="ibtn" id="setBack" aria-label="Back to settings" hidden><span class="ms">arrow_back</span></button><h2 id="setTitle">Settings</h2><button class="ibtn" id="closeSettings" aria-label="Close"><span class="ms">close</span></button></header>
+    <div class="rows setmenu" id="setMenu"></div>
+
+    <div class="pgroup spage" data-page="profile" hidden>
       <div class="profrow">
         <span class="avatar big" id="avPreview"></span>
         <div class="fld" style="flex:1;min-width:0">
@@ -626,7 +663,9 @@ a.rowi{color:inherit}
         <button class="pbtn outline" id="avRemove" type="button" hidden>Remove photo</button>
         <input type="file" id="avFile" accept="image/*" hidden>
       </div>
-      <h3>Navigator voice</h3>
+    </div>
+
+    <div class="pgroup spage" data-page="voice" hidden>
       <div class="fld">
         <label for="apiKey">ElevenLabs API key</label>
         <div class="inl"><input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk_…"><button class="pbtn outline" id="toggleKey" type="button">Show</button></div>
@@ -647,6 +686,23 @@ a.rowi{color:inherit}
           <option value="eleven_v3">Eleven v3 — most expressive (giggles, sighs), slowest</option>
         </select>
       </div>
+      <div class="btnrow"><button class="pbtn primary big" id="testVoice" type="button"><span class="ms">play_arrow</span>Test voice</button></div>
+      <div class="status" id="setStatus"></div>
+      <div class="small">Each new direction uses about 40–70 characters of your ElevenLabs quota. Lines are saved on this phone and reused. If ElevenLabs can't be reached, the phone's own voice takes over.</div>
+
+      <details class="adv"><summary>Advanced voice tuning</summary>
+        <div class="advbody">
+      <div class="fld"><label for="stab">Stability <b id="stabV"></b></label><input type="range" id="stab" min="0" max="1" step="0.05"><div class="small">Lower is more expressive and varied. Higher is steadier.</div></div>
+      <div class="fld"><label for="sim">Similarity <b id="simV"></b></label><input type="range" id="sim" min="0" max="1" step="0.05"></div>
+      <div class="fld"><label for="sty">Style exaggeration <b id="styV"></b></label><input type="range" id="sty" min="0" max="1" step="0.05"><div class="small">Above 0.5 can get wobbly.</div></div>
+      <div class="fld"><label for="spdRange">Speed <b id="spdVal"></b></label><input type="range" id="spdRange" min="0.7" max="1.2" step="0.05"></div>
+      <label class="check"><input type="checkbox" id="boost">Speaker boost (clearer over road noise)</label>
+          <div class="btnrow"><button class="pbtn outline" id="resetVoice" type="button">Reset sliders</button></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="pgroup spage" data-page="personality" hidden>
       <div class="fld">
         <label for="persona">Personality</label>
         <select id="persona">
@@ -660,22 +716,9 @@ a.rowi{color:inherit}
         <div class="small">On long stretches with no turns coming up. Some is about every 12 minutes, Chatty about every 6. Each line uses a little ElevenLabs credit.</div></div>
       <label class="check"><input type="checkbox" id="setFacts">Fun facts about places you pass</label>
       <label class="check"><input type="checkbox" id="setSpeedWarn">Speak up when you're well over the speed limit</label>
-      <div class="fld"><label for="stab">Stability <b id="stabV"></b></label><input type="range" id="stab" min="0" max="1" step="0.05"><div class="small">Lower is more expressive and varied. Higher is steadier.</div></div>
-      <div class="fld"><label for="sim">Similarity <b id="simV"></b></label><input type="range" id="sim" min="0" max="1" step="0.05"></div>
-      <div class="fld"><label for="sty">Style exaggeration <b id="styV"></b></label><input type="range" id="sty" min="0" max="1" step="0.05"><div class="small">Above 0.5 can get wobbly.</div></div>
-      <div class="fld"><label for="spd">Speed <b id="spdVal"></b></label><input type="range" id="spd" min="0.7" max="1.2" step="0.05"></div>
-      <label class="check"><input type="checkbox" id="boost">Speaker boost (clearer over road noise)</label>
-      <div class="btnrow"><button class="pbtn primary" id="testVoice" type="button"><span class="ms">play_arrow</span>Test voice</button><button class="pbtn outline" id="resetVoice" type="button">Reset sliders</button><button class="pbtn outline" id="clearCache" type="button">Clear saved audio</button></div>
-      <div class="status" id="setStatus"></div>
-      <div class="small">Each new direction uses about 40–70 characters of your ElevenLabs quota. Lines are saved on this phone and reused. If ElevenLabs can't be reached, the phone's own voice takes over.</div>
+    </div>
 
-      <h3>Live traffic</h3>
-      <div class="small">Free: sign up at developer.tomtom.com (no credit card), open your dashboard, and copy the API key. Turns on traffic-aware routes, traffic colors, fuel-efficient routes, carpool and FasTrak options, and "faster route found" alerts. The free tier covers far more than one driver uses.</div>
-      <div class="fld"><label for="ttKey">TomTom API key</label><input id="ttKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste key"></div>
-      <div class="fld"><label for="mpg">Your car's highway MPG <b id="mpgV"></b></label><input type="range" id="mpg" min="12" max="60" step="1"><div class="small">Used to estimate fuel for each route.</div></div>
-      <label class="check"><input type="checkbox" id="autoFaster">Switch to faster routes automatically</label>
-      <div class="status" id="ttStatus"></div>
-      <h3>Assistant</h3>
+    <div class="pgroup spage" data-page="assistant" hidden>
       <div class="small">Tap the talk button while driving (or tap your buddy) and ask anything: info about where you're going, events, or random questions. Uses the Claude API, pay-as-you-go: roughly 1–2¢ per question when she searches the web, a fraction of a cent when she doesn't.</div>
       <div class="fld">
         <label for="claudeKey">Claude API key</label>
@@ -688,6 +731,14 @@ a.rowi{color:inherit}
           <option value="claude-haiku-5-5">Haiku 5.5 — fastest, cheapest</option>
           <option value="claude-sonnet-5-5">Sonnet 5.5 — smarter, a bit slower and pricier</option>
         </select></div>
+      <div class="fld"><label>Language</label>
+        <div class="seg" id="vibeSeg"><button type="button" data-v="clean">Clean</button><button type="button" data-v="casual">Casual</button><button type="button" data-v="unhinged">Unhinged</button></div>
+        <div class="small" id="vibeNote"></div></div>
+      <label class="check"><input type="checkbox" id="asstFollowUp">After she answers, listen for a follow-up (no tap needed)</label>
+      <label class="check"><input type="checkbox" id="asstSearch">Let her search the web (needed for events and anything current)</label>
+      <div class="fld"><label for="asstNotes">Things she should know about you (optional)</label><textarea id="asstNotes" placeholder="e.g. I'm into anime and VTubers, I live in Barstow, I hate traffic"></textarea></div>
+      <div class="btnrow"><button class="pbtn primary" id="testAsk" type="button"><span class="ms">graphic_eq</span>Try talking to her</button></div>
+      <h3>Tone detection</h3>
       <div class="fld">
         <label for="geminiKey">Tone detection: Gemini API key (optional, free tier)</label>
         <div class="inl"><input id="geminiKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…"><button class="pbtn outline" id="toggleGemini" type="button">Show</button></div>
@@ -699,25 +750,33 @@ a.rowi{color:inherit}
           <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — quickest</option>
         </select></div>
       <label class="check"><input type="checkbox" id="asstTone">Use tone detection when a Gemini key is set</label>
-      <div class="fld"><label>Language</label>
-        <div class="seg" id="vibeSeg"><button type="button" data-v="clean">Clean</button><button type="button" data-v="casual">Casual</button><button type="button" data-v="unhinged">Unhinged</button></div>
-        <div class="small" id="vibeNote"></div></div>
-      <label class="check"><input type="checkbox" id="asstFollowUp">After she answers, listen for a follow-up (no tap needed)</label>
-      <label class="check"><input type="checkbox" id="asstSearch">Let her search the web (needed for events and anything current)</label>
-      <div class="fld"><label for="asstNotes">Things she should know about you (optional)</label><textarea id="asstNotes" placeholder="e.g. I'm into anime and VTubers, I live in Barstow, I hate traffic"></textarea></div>
-      <div class="btnrow"><button class="pbtn primary" id="testAsk" type="button"><span class="ms">graphic_eq</span>Try talking to her</button></div>
-      <h3>Navigator buddy</h3>
+    </div>
+
+    <div class="pgroup spage" data-page="buddy" hidden>
       <div class="small">Upload art of your navigator and she'll talk along with the directions. PNGs with see-through backgrounds look best. Keep every frame the same size and position so she doesn't jump around.</div>
       <div class="slots" id="buddySlots"></div>
       <label class="check"><input type="checkbox" id="buddyOn">Show while navigating</label>
+      <label class="check"><input type="checkbox" id="buddyAlways">Also show her on the map when not navigating (tap her to talk)</label>
       <div class="fld"><label>Size</label><div class="seg" id="buddySizeSeg"><button type="button" data-v="s">Small</button><button type="button" data-v="m">Medium</button><button type="button" data-v="l">Large</button></div></div>
       <input type="file" id="buddyFile" accept="image/*" hidden>
-      <h3>Navigation</h3>
+    </div>
+
+    <div class="pgroup spage" data-page="traffic" hidden>
+      <div class="small">Free: sign up at developer.tomtom.com (no credit card), open your dashboard, and copy the API key. Turns on traffic-aware routes, traffic colors, fuel-efficient routes, carpool and FasTrak options, and "faster route found" alerts. The free tier covers far more than one driver uses.</div>
+      <div class="fld"><label for="ttKey">TomTom API key</label><div class="inl"><input id="ttKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste key"><button class="pbtn outline" id="toggleTT" type="button">Change</button></div></div>
+      <div class="fld"><label for="mpg">Your car's highway MPG <b id="mpgV"></b></label><input type="range" id="mpg" min="12" max="60" step="1"><div class="small">Used to estimate fuel for each route.</div></div>
+      <label class="check"><input type="checkbox" id="autoFaster">Switch to faster routes automatically</label>
+      <div class="status" id="ttStatus"></div>
+    </div>
+
+    <div class="pgroup spage" data-page="navigation" hidden>
       <div class="fld"><label>Distance units</label><div class="seg" id="unitsSeg"><button type="button" data-v="imperial">Miles</button><button type="button" data-v="metric">Kilometers</button></div></div>
       <label class="check"><input type="checkbox" id="setHeading">Map turns with your direction while driving</label>
       <label class="check"><input type="checkbox" id="setSpeed">Show speedometer and speed limits</label>
 
-      <h3>Map</h3>
+    </div>
+
+    <div class="pgroup spage" data-page="appearance" hidden>
       <div class="fld"><label>Theme</label>
         <div class="skins" id="skinPick">
           <button type="button" class="skin" data-skin="google"><span class="sw"><i style="background:#1a73e8"></i><i style="background:#0f7b45"></i><i style="background:#f1f3f4"></i></span>Google</button>
@@ -727,11 +786,24 @@ a.rowi{color:inherit}
       </div>
       <div class="fld"><label>Color scheme</label><div class="seg" id="themeSeg"><button type="button" data-v="auto">Auto</button><button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button></div></div>
 
+      <div class="fld"><label>App icon</label>
+        <div class="icons" id="iconPick">
+          <button type="button" class="icn" data-icon="Default"><span class="ip" style="background:#1A73E8"><i style="border-bottom-color:#fff"></i></span>Classic</button>
+          <button type="button" class="icn" data-icon="Saba"><span class="ip" style="background:#60BEE0"><b></b><i style="border-bottom-color:#fff"></i></span>Saba</button>
+          <button type="button" class="icn" data-icon="Midnight"><span class="ip" style="background:#202124"><i style="border-bottom-color:#8AB4F8"></i></span>Midnight</button>
+          <button type="button" class="icn" data-icon="Sakura"><span class="ip" style="background:#F8BBD0"><i style="border-bottom-color:#C2185B"></i></span>Sakura</button>
+        </div>
+        <div class="btnrow"><label class="pbtn outline" for="iconFile"><span class="ms">add_photo_alternate</span>Use my own picture</label><input type="file" id="iconFile" accept="image/*" hidden></div>
+        <div class="small">The styles above replace the app icon (it can take a few seconds to update). Your own picture adds an extra home-screen icon, since Android doesn't let apps swap their main icon for a custom photo.</div>
+      </div>
+    </div>
+
+    <div class="pgroup spage" data-page="data" hidden>
       <h3>Offline maps</h3>
       <div class="small" id="offUsage">Save a route from its directions screen with Save offline.</div>
-      <div class="btnrow"><button class="pbtn outline" id="offClear" type="button">Delete offline maps</button></div>
-      <h3>Your data</h3>
-      <div class="btnrow"><button class="pbtn outline" id="clearHistory" type="button">Clear search history</button></div>
+      <div class="btnrow"><button class="pbtn outline danger" id="offClear" type="button">Delete offline maps</button></div>
+      <h3>History &amp; saved audio</h3>
+      <div class="btnrow"><button class="pbtn outline danger" id="clearHistory" type="button">Clear search history</button><button class="pbtn outline danger" id="clearCache" type="button">Clear saved voice audio</button></div>
       <div class="small">Saved places, labels and history live only in this browser on this phone.</div>
     </div>
   </div>
@@ -773,19 +845,28 @@ const S = {
   persona:(p => p === 'shark' ? 'chill' : p)(LS.get('persona','standard')), customLines:LS.get('customLines',{}), chatter:LS.get('chatter','some'), funFacts:LS.get('funFacts',true), speedWarn:LS.get('speedWarn',true),
   stab:LS.get('stab',0.55), sim:LS.get('sim',0.8), sty:LS.get('sty',0), spd:LS.get('spd',1), boost:LS.get('boost',true),
   theme:LS.get('theme','auto'), skin:LS.get('skin','google'), customColor:LS.get('customColor','#e0559b'), layer:LS.get('layer','default'), mode:LS.get('mode','car'),
-  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddySize:LS.get('buddySize','m'),
+  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
 Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
 const persistSaved = () => { LS.set('saved', saved); drawSaved(); };
 const recents = () => LS.get('recents', []);
+// How often you open or drive to each place, so your favorites rise to the top of suggestions
+const useKey = p => p.lat.toFixed(4) + ',' + p.lng.toFixed(4);
+function useCount(p){ return (LS.get('useCounts', {}) || {})[useKey(p)] || 0; }
+function bumpUse(p){
+  const u = LS.get('useCounts', {}) || {}; u[useKey(p)] = (u[useKey(p)] || 0) + 1;
+  const ks = Object.keys(u); if (ks.length > 400) ks.sort((a, b) => u[a] - u[b]).slice(0, ks.length - 400).forEach(k => delete u[k]);
+  LS.set('useCounts', u);
+}
 function addRecent(p){
   if (!p || p.isMe) return;
+  if (typeof p.lat === 'number') bumpUse(p);
   const list = recents().filter(r => !samePlace(r, p));
   list.unshift(slim(p)); LS.set('recents', list.slice(0, 15));
 }
@@ -833,9 +914,19 @@ const canRotateLib = !!(L.Map.prototype.setBearing);
 const map = L.map('map', { zoomControl:false, attributionControl:true, rotate:canRotateLib, touchRotate:false, rotateControl:false, bearing:0 }).setView([37.7749,-122.4194], 13);
 const LAYERS = {
   default:{ url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png', opts:{ maxZoom:20, maxNativeZoom:19, attribution:'&copy; OpenStreetMap contributors' } },
+  detailed:{ url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png', opts:{ maxZoom:20, maxNativeZoom:19, attribution:'&copy; OpenStreetMap contributors' } },
   satellite:{ url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', opts:{ maxZoom:20, maxNativeZoom:19, attribution:'Imagery &copy; Esri, Maxar, Earthstar Geographics' } },
   terrain:{ url:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', opts:{ maxZoom:20, maxNativeZoom:17, subdomains:'abc', attribution:'&copy; OpenStreetMap contributors, SRTM | OpenTopoMap' } }
 };
+// Default map: TomTom's clean, Google-style map when you have a TomTom key (less clutter, bigger road labels).
+// Without a key, or on "Detailed", it uses OpenStreetMap, which shows every shop, path and building.
+function layerDef(name){
+  if (name === 'default' && hasTT()){
+    return { url:`https://api.tomtom.com/map/1/tile/basic/${isDark() ? 'night' : 'main'}/{z}/{x}/{y}.png?key=${encodeURIComponent(S.ttKey.trim())}&tileSize=256&view=Unified&language=en-US`,
+      opts:{ maxZoom:20, maxNativeZoom:20, attribution:'&copy; TomTom' }, ownDark:true };
+  }
+  return LAYERS[name] || LAYERS.default;
+}
 let tileLayer = null, trafficTiles = null;
 function syncTraffic(){
   const want = hasTT() && S.trafficLayer && S.layer !== 'terrain';
@@ -867,8 +958,8 @@ const tileKey = url => url.replace(/\/\/[abc]\.tile\./, '//tile.');
 function setLayer(name){
   S.layer = LAYERS[name] ? name : 'default'; save();
   if (tileLayer) tileLayer.remove();
-  const L0 = LAYERS[S.layer];
-  tileLayer = new CachedTiles(L0.url, { ...L0.opts, className:(S.layer === 'default' && isDark()) ? 'tiles-dark' : '' }).addTo(map);
+  const L0 = layerDef(S.layer);
+  tileLayer = new CachedTiles(L0.url, { ...L0.opts, className:((S.layer === 'default' || S.layer === 'detailed') && isDark() && !L0.ownDark) ? 'tiles-dark' : '' }).addTo(map);
   document.querySelectorAll('#layerCards .lcard').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.layer === S.layer)));
   if (trafficTiles){ map.removeLayer(trafficTiles); trafficTiles = null; }
   if (typeof syncTraffic === 'function') syncTraffic();
@@ -1647,6 +1738,7 @@ const BUDDY_SLOTS = [
   { k:'surprised', label:'Surprised', hint:'Missed a turn' },
   { k:'worried', label:'Worried', hint:'Going too fast' }
 ];
+const BUDDY_IDLE_VIEWS = ['explore','go','saved','results','place','list'];
 const Buddy = (() => {
   let frames = LS.get('buddy', {}) || {};
   let talking = null;       // { env, clock, mood, random, until }
@@ -1654,7 +1746,11 @@ const Buddy = (() => {
   let raf = 0, shownFrame = '';
   const el = () => $('buddy'), img = () => $('buddyImg');
   const ready = () => !!(frames.closed && frames.open);
-  function visible(){ return ready() && S.buddyOn && (!!st.nav || Buddy.testing || performance.now() < Buddy.lingerUntil); }
+  function idleShow(){
+    if (!S.buddyAlways || st.nav || !BUDDY_IDLE_VIEWS.includes(curView())) return false;
+    return sheet.hidden || sheet.getBoundingClientRect().height < innerHeight * 0.55;
+  }
+  function visible(){ return ready() && S.buddyOn && (!!st.nav || Buddy.testing || performance.now() < Buddy.lingerUntil || idleShow()); }
   function setFrame(k){
     const src = frames[k] || frames.closed;
     if (shownFrame === src) return;
@@ -1792,11 +1888,19 @@ function toast(msg, ms_ = 3200){ const t = $('toast'); t.textContent = msg; t.hi
 let modalZ = 800;
 function openModal(id){
   if (![...document.querySelectorAll('.modal')].some(m => !m.hidden)) modalZ = 800;
+  if ($(id).hidden){ try{ history.pushState({ n:stack.length, modal:id }, ''); }catch{} }
   $(id).style.zIndex = String(++modalZ); $(id).hidden = false;
 }
-function closeModal(id){ $(id).hidden = true; }
+let ignorePop = false;
+function closeModal(id){
+  if ($(id).hidden) return;
+  $(id).hidden = true;
+  if (history.state && history.state.modal === id){ ignorePop = true; try{ history.back(); }catch{ ignorePop = false; } }
+}
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeModal(b.dataset.close));
-document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.hidden = true; }));
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m && !m.dataset.sticky) closeModal(m.id); }));
+// Phone back button: step back inside settings, then close the top popup, before leaving the screen
+function topModal(){ return [...document.querySelectorAll('.modal')].filter(m => !m.hidden).sort((a, b) => (+b.style.zIndex || 0) - (+a.style.zIndex || 0))[0]; }
 
 /* ---------- bottom sheet ---------- */
 const sheet = $('sheet'), sbody = $('sbody');
@@ -1862,7 +1966,9 @@ function placeFabs(){
   $('layersBtn').style.top = (topH + 8) + 'px';
   $('compassBtn').style.top = (topH + 64) + 'px';
   document.documentElement.style.setProperty('--attr-bottom', (st.nav ? $('navBar').offsetHeight : base - 12) + 'px');
-  $('buddy').style.bottom = ((st.nav ? $('navBar').offsetHeight : 0) + 12) + 'px';
+  $('buddy').style.bottom = (st.nav ? $('navBar').offsetHeight + 12 : base) + 'px';
+  $('buddy').classList.toggle('idle', !st.nav);
+  Buddy.refresh();
   { const tb2 = $('tabbar').hidden ? 0 : $('tabbar').offsetHeight;
     const below = st.nav ? $('navBar').offsetHeight : (sheet.hidden ? 0 : sheet.getBoundingClientRect().height) + tb2;
     $('askCard').style.bottom = (below + 10) + 'px'; $('fasterCard').style.bottom = (below + 10) + 'px'; }
@@ -2002,6 +2108,13 @@ function root(view){
 }
 function back(){ if (stack.length > 1) history.back(); else if (curView() !== 'explore') root('explore'); }
 addEventListener('popstate', () => {
+  if (ignorePop){ ignorePop = false; return; }
+  const m = topModal();
+  if (m){
+    if (m.id === 'settings' && setPage){ showSetPage(null); try{ history.pushState({ n:stack.length, modal:'settings' }, ''); }catch{} return; }
+    if (m.id === 'settings'){ readVoiceFields(); m.hidden = true; if (!st.nav) render(); } else m.hidden = true;
+    return;
+  }
   if (curView() === 'nav'){ try{ history.pushState({ n:stack.length }, ''); }catch{} return; }
   if (stack.length > 1){ stack.pop(); render(); }
 });
@@ -2046,6 +2159,7 @@ function render(){
   ({ explore:viewExplore, go:viewGo, saved:viewSaved, results:viewResults, place:viewPlace, list:viewList, stats:viewStats, pinfix:viewPinFix, directions:viewDirections, search:viewSearch, nav:() => {} })[v](d);
   requestAnimationFrame(placeFabs);
   updateCompass();
+  Buddy.refresh();
 }
 function setPill(v, d){
   const lead = $('pillLeadIc'), txt = $('pillText');
@@ -2077,8 +2191,8 @@ function renderBuddySlots(){
       ${f[sl.k] ? `<button type="button" class="sx" data-clear="${sl.k}" aria-label="Remove ${sl.label}">${ms('close','sm')}</button>` : ''}
       <b>${sl.label}</b><span>${sl.req ? 'Required' : (sl.hint || 'Optional')}</span></div>`).join('');
   $('buddySlots').querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { buddySlotPick = b.dataset.slot; $('buddyFile').click(); });
-  $('buddySlots').querySelectorAll('[data-clear]').forEach(b => b.onclick = () => { const f2 = { ...Buddy.frames() }; delete f2[b.dataset.clear]; Buddy.save(f2); renderBuddySlots(); });
-  $('buddyOn').checked = S.buddyOn;
+  $('buddySlots').querySelectorAll('[data-clear]').forEach(b => confirmTap(b, () => { const f2 = { ...Buddy.frames() }; delete f2[b.dataset.clear]; Buddy.save(f2); renderBuddySlots(); }, 'Tap the X again to remove that frame'));
+  $('buddyOn').checked = S.buddyOn; $('buddyAlways').checked = S.buddyAlways;
   syncSeg('buddySizeSeg', S.buddySize);
 }
 $('buddyFile').addEventListener('change', () => {
@@ -2098,6 +2212,7 @@ $('buddyFile').addEventListener('change', () => {
   im.src = url;
 });
 $('buddyOn').onchange = () => { S.buddyOn = $('buddyOn').checked; save(); Buddy.refresh(); };
+$('buddyAlways').onchange = () => { S.buddyAlways = $('buddyAlways').checked; save(); placeFabs(); Buddy.refresh(); };
 function applyBuddySize(){ document.documentElement.style.setProperty('--buddy-size', ({ s:76, m:104, l:140 })[S.buddySize] + 'px'); }
 applyBuddySize();
 document.querySelectorAll('#buddySizeSeg button').forEach(b => b.onclick = () => { S.buddySize = b.dataset.v; save(); syncSeg('buddySizeSeg', S.buddySize); applyBuddySize(); });
@@ -2143,11 +2258,11 @@ function renderChips(active){
 function placeRow(p, opts = {}){
   const dist = st.pos ? fmtDist(hav(st.pos.ll, [p.lat, p.lng])) : '';
   const hs = p.tags ? hoursStatus(parseOH(p.tags.opening_hours)) : null;
-  const lbl = placeLabel(p);
-  const sub = [lbl, p.cat, p.sub].filter(Boolean).join(' · ');
+  const lbl = opts.title ? '' : placeLabel(p);
+  const sub = opts.title ? [p.name, p.sub].filter(Boolean).join(' · ') : [lbl, p.cat, p.sub].filter(Boolean).join(' · ');
   return `<div class="rowi" role="button" tabindex="0" data-i="${opts.i ?? ''}">
     <span class="ic">${ms(opts.icon || p.icon || 'location_on')}</span>
-    <span class="tx"><div class="t">${esc(p.name)}</div><div class="s">${esc(sub)}</div>${hs ? `<div class="s hours ${hs.cls}">${esc(hs.text)}</div>` : ''}</span>
+    <span class="tx"><div class="t">${esc(opts.title || p.name)}</div><div class="s">${esc(sub)}</div>${hs ? `<div class="s hours ${hs.cls}">${esc(hs.text)}</div>` : ''}</span>
     <span class="r">${esc(opts.right ?? dist)}</span>
     ${opts.removable ? `<button class="rmx" data-rm="${opts.i}" aria-label="Remove from history">${ms('close','sm')}</button>` : ''}</div>`;
 }
@@ -2546,11 +2661,39 @@ function viewSearch(d){
   drawSuggestions();
   setTimeout(() => inp.focus(), 60);
 }
+/* Instant matches from your labels, saved places and history, as you type */
+function matchScore(text, ql){
+  const t = text.toLowerCase();
+  if (t.startsWith(ql)) return 3;
+  const words = t.split(/[^a-z0-9]+/).filter(Boolean);
+  if (words.some(w => w.startsWith(ql.replace(/[^a-z0-9]+/g, '')))) return 2;
+  if (ql.length >= 3 && t.includes(ql)) return 1;
+  return 0;
+}
+function localMatches(q){
+  const ql = q.toLowerCase().trim(); if (!ql) return [];
+  const out = [];
+  savedEntries().forEach(e => {
+    const labeled = !!e.label;
+    const ls = labeled ? matchScore(e.label, ql) : 0;
+    const sc = Math.max(ls ? ls + 1 : 0, matchScore(e.place.name || '', ql), ql.length >= 3 ? matchScore(e.place.sub || '', ql) && 1 : 0);
+    if (sc) out.push({ ...e.place, icon:e.icon, _lbl:e.label, _title:labeled ? e.label : '', _tier:labeled ? 0 : 1, _sc:sc, _use:useCount(e.place), _ord:0 });
+  });
+  recents().forEach((r, i) => {
+    if (out.some(o => samePlace(o, r))) return;
+    const sc = Math.max(matchScore(r.name || '', ql), ql.length >= 3 ? matchScore(r.sub || '', ql) && 1 : 0);
+    if (sc) out.push({ ...r, _recent:true, _tier:2, _sc:sc, _use:useCount(r), _ord:i });
+  });
+  out.sort((a, b) => a._tier - b._tier || b._use - a._use || b._sc - a._sc || a._ord - b._ord);
+  const lim = { 0:5, 1:3, 2:4 }, cnt = { 0:0, 1:0, 2:0 };
+  return out.filter(p => cnt[p._tier]++ < lim[p._tier]);
+}
 function drawSuggestions(items, full){
   const d = curData(), q = $('sInput').value.trim();
   const list = $('sList');
   let html = '', all = [];
-  if (q && !full) html += `<button class="rowi" id="fullRow"><span class="ic">${ms('search')}</span><span class="tx"><div class="t">Search for “${esc(q)}”</div><div class="s">${looksLikeAddress(q) ? 'Best for street addresses' : 'See all results nearby'}</div></span></button>`;
+  const mine = q ? localMatches(q) : [];
+  const fullRowHtml = q && !full ? `<button class="rowi" id="fullRow"><span class="ic">${ms('search')}</span><span class="tx"><div class="t">Search for “${esc(q)}”</div><div class="s">${looksLikeAddress(q) ? 'Best for street addresses' : 'See all results nearby'}</div></span></button>` : '';
   if (d.pick && d.pick.kind === 'field'){
     all.push({ isMe:true, name:'Your location', icon:'my_location' });
   }
@@ -2563,15 +2706,17 @@ function drawSuggestions(items, full){
     if (saved.work && d.pick?.kind !== 'work') sc.push({ ...saved.work, icon:'work', _lbl:'Work' });
     all.push(...sc, ...recents().slice(0, 12).map(p => ({ ...p, _recent:true })));
   } else {
-    const ql = q.toLowerCase();
-    const mine = savedEntries().map(e => ({ ...e.place, icon:e.icon, _lbl:e.label })).filter(p => (p.name + ' ' + (p._lbl || '') + ' ' + (p.sub || '')).toLowerCase().includes(ql)).slice(0, 4);
     all.push(...mine, ...(items || []).filter(p => !mine.some(m => samePlace(m, p))));
   }
   if (!q && all.some(p => p._recent)) html += `<div class="sec secrow"><span>Recent</span><button id="sClearHist">Clear all</button></div>`;
-  html += `<div class="rows" id="sRows">${all.map((p, i) => {
+  const rowHtml = (p, i) => {
     if (p.isMe) return `<button class="rowi" data-i="${i}"><span class="ic" style="color:var(--blue)">${ms('my_location')}</span><span class="tx"><div class="t">Your location</div></span></button>`;
+    if (p._title) return placeRow(p, { i, icon:p.icon, title:p._title });
     return placeRow({ ...p, cat: p._lbl || p.cat }, { i, icon: p._recent ? 'history' : p.icon, removable: !!p._recent });
-  }).join('')}</div>`;
+  };
+  // your own places first, then "Search for…", then everything else
+  const nMine = q ? all.filter(p => mine.includes(p) || p.isMe).length : 0;
+  html += `<div class="rows" id="sRows">${all.slice(0, nMine).map((p, i) => rowHtml(p, i)).join('')}${fullRowHtml}${all.slice(nMine).map((p, i) => rowHtml(p, i + nMine)).join('')}</div>`;
   if (q && !items) html += `<div class="loading"><span class="spin"></span>Searching…</div>`;
   if (q && items && !all.length) html += `<div class="empty">No matches for “${esc(q)}”. Try adding a city or street.</div>`;
   if (!q && !all.length) html += `<div class="empty">Search for a place or address.</div>`;
@@ -2616,7 +2761,7 @@ $('sMic').onclick = () => startVoiceSearch();
 function pickedFromSearch(p){
   const d = curData();
   const place = p.isMe ? { isMe:true, name:'Your location' } : { ...p };
-  delete place._recent; delete place._lbl;
+  ['_recent','_lbl','_title','_tier','_sc','_use','_ord'].forEach(k => delete place[k]);
   if (d.pick){
     if (d.pick.kind === 'home' || d.pick.kind === 'work'){
       saved[d.pick.kind] = slim(place); persistSaved();
@@ -3607,7 +3752,7 @@ function tileXY(lat, lng, z){
   return [x, y];
 }
 function tilesForRoute(coords, layerName){
-  const L0 = LAYERS[layerName], maxZ = Math.min(16, L0.opts.maxNativeZoom || 16);
+  const L0 = layerDef(layerName), maxZ = Math.min(16, L0.opts.maxNativeZoom || 16);
   const set = new Set();
   for (let z = 10; z <= maxZ; z++){
     const pad = z >= 15 ? 1 : 1;
@@ -3624,7 +3769,7 @@ function tilesForRoute(coords, layerName){
 }
 function tileUrl(layerName, key){
   const [z, x, y] = key.split('/');
-  const L0 = LAYERS[layerName];
+  const L0 = layerDef(layerName);
   return L0.url.replace('{s}', 'a').replace('{z}', z).replace('{x}', x).replace('{y}', y).replace('{r}', '');
 }
 let offlineJob = null;
@@ -3912,6 +4057,69 @@ map.on('contextmenu', e => {
 });
 
 /* ================= settings ================= */
+const SET_PAGES = [
+  { id:'profile', icon:'account_circle', title:'Profile', sub:() => LS.get('profName', '') || 'Name and photo' },
+  { id:'voice', icon:'record_voice_over', title:'Voice', sub:() => !S.key ? 'Not set up yet' : S.voiceName || (S.voiceId ? 'Custom voice' : 'Pick a voice') },
+  { id:'personality', icon:'mood', title:'Personality', sub:() => (S.persona === 'chill' ? 'Saba, chill' : 'Standard') + ' · chatter ' + ({ off:'off', some:'some', chatty:'chatty' })[S.chatter] },
+  { id:'assistant', icon:'graphic_eq', title:'Assistant', sub:() => !S.claudeKey ? 'Off, needs a Claude key' : `${assistantName()} · ${titleCase(S.vibe)}${S.geminiKey && S.asstTone ? ' · tone on' : ''}` },
+  { id:'buddy', icon:'face', title:'Buddy avatar', sub:() => !Buddy.ready() ? 'No art yet' : !S.buddyOn ? 'Hidden' : S.buddyAlways ? 'Always on the map' : 'While navigating' },
+  { id:'traffic', icon:'traffic', title:'Live traffic', sub:() => hasTT() ? 'On' : 'Off, needs a TomTom key' },
+  { id:'navigation', icon:'navigation', title:'Navigation', sub:() => (S.units === 'metric' ? 'Kilometers' : 'Miles') + (S.headingUp ? ' · map turns with you' : '') },
+  { id:'appearance', icon:'palette', title:'Look & app icon', sub:() => titleCase(S.skin) + ' theme · ' + titleCase(S.theme) },
+  { id:'data', icon:'storage', title:'Storage & history', sub:() => 'Offline maps, search history, saved audio' }
+];
+let setPage = null;
+function renderSetMenu(){
+  $('setMenu').innerHTML = SET_PAGES.map(p => `<button type="button" class="setrow" data-page="${p.id}">
+      <span class="si">${ms(p.icon)}</span><span class="st"><b>${esc(p.title)}</b><span>${esc(p.sub())}</span></span>${ms('chevron_right','sm')}</button>`).join('');
+  $('setMenu').querySelectorAll('[data-page]').forEach(b => b.onclick = () => showSetPage(b.dataset.page));
+}
+function showSetPage(id){
+  if (setPage === 'voice' || setPage === 'traffic' || setPage === 'assistant') lockKeys();
+  setPage = id;
+  document.querySelectorAll('#settings .spage').forEach(pg => pg.hidden = pg.dataset.page !== id);
+  $('setMenu').hidden = !!id; $('setBack').hidden = !id;
+  $('setTitle').textContent = id ? SET_PAGES.find(p => p.id === id).title : 'Settings';
+  if (!id){ readVoiceFields(); renderSetMenu(); }
+  disarmAll();
+  $('settings').querySelector('.panel').scrollTop = 0;
+}
+$('setBack').onclick = () => showSetPage(null);
+
+/* API keys stay locked until you tap Change, so a stray tap can't wipe them */
+const KEY_FIELDS = [['apiKey','toggleKey'], ['ttKey','toggleTT'], ['claudeKey','toggleClaude'], ['geminiKey','toggleGemini']];
+function lockKey(inp, btn){
+  const i = $(inp), b = $(btn);
+  i.type = 'password';
+  if (i.value.trim()){ i.readOnly = true; i.classList.add('locked'); b.textContent = 'Change'; }
+  else { i.readOnly = false; i.classList.remove('locked'); b.textContent = 'Show'; }
+}
+function lockKeys(){ KEY_FIELDS.forEach(([i, b]) => { if (!$(i).readOnly && $(i).value.trim() && document.activeElement === $(i)) $(i).blur(); lockKey(i, b); }); }
+function wireKey(inp, btn){
+  $(btn).onclick = () => {
+    const i = $(inp), b = $(btn);
+    if (i.readOnly){ i.readOnly = false; i.classList.remove('locked'); i.type = 'text'; b.textContent = 'Done'; i.focus(); try{ i.select(); }catch{} return; }
+    if (b.textContent === 'Show'){ i.type = 'text'; b.textContent = 'Hide'; return; }
+    if (b.textContent === 'Hide'){ i.type = 'password'; b.textContent = 'Show'; return; }
+    i.dispatchEvent(new Event('change')); lockKey(inp, btn);
+  };
+}
+
+/* Anything that deletes stuff needs a second tap */
+const armed = new Map();
+function disarm(b){ const a = armed.get(b); if (!a) return; clearTimeout(a.t); if (a.label != null) b.innerHTML = a.label; b.classList.remove('confirm'); armed.delete(b); }
+function disarmAll(){ [...armed.keys()].forEach(disarm); }
+function confirmTap(b, fn, msg = 'Tap again to confirm'){
+  b.onclick = e => {
+    if (armed.has(b)){ disarm(b); fn(e); return; }
+    disarmAll();
+    const iconOnly = !b.textContent.trim() || b.classList.contains('sx');
+    armed.set(b, { label: iconOnly ? null : b.innerHTML, t: setTimeout(() => disarm(b), 3500) });
+    b.classList.add('confirm');
+    if (iconOnly) toast(msg, 2500); else b.textContent = msg;
+  };
+}
+
 function openSettings(){
   loadElUsage();
   $('ttKey').value = S.ttKey; $('mpg').value = S.mpg; $('mpgV').textContent = S.mpg; $('autoFaster').checked = S.autoFaster; $('ttStatus').textContent = hasTT() ? 'Live traffic is on.' : '';
@@ -3929,6 +4137,7 @@ function openSettings(){
   syncSeg('unitsSeg', S.units); syncSeg('themeSeg', S.theme);
   syncSliders();
   status('');
+  lockKeys(); showSetPage(null);
   openModal('settings');
 }
 function syncSeg(id, v){ document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); }
@@ -3955,7 +4164,7 @@ async function loadElUsage(){
 }
 window.__wvDebug = { checkFaster:() => st.nav && checkFaster(st.nav) };
 $('ttKey').addEventListener('change', async () => {
-  S.ttKey = $('ttKey').value.trim(); save(); syncTraffic();
+  S.ttKey = $('ttKey').value.trim(); save(); setLayer(S.layer);
   if (!S.ttKey){ $('ttStatus').textContent = ''; return; }
   $('ttStatus').textContent = 'Checking key…'; $('ttStatus').className = 'status';
   try{ await ttFetch([[34.0522, -118.2437], [34.0407, -118.2468]], '&maxAlternatives=0'); $('ttStatus').textContent = 'Live traffic is on.'; }
@@ -4013,12 +4222,13 @@ $('linesSave').onclick = () => {
 };
 $('voiceSel').onchange = () => { if ($('voiceSel').value) $('voiceId').value = $('voiceSel').value; };
 const SLIDERS = ['stab','sim','sty','spd'];
-function syncSliders(){ SLIDERS.forEach(k => $(k).value = S[k]); $('boost').checked = !!S.boost; labelSliders(); }
+const sliderEl = k => $(k === 'spd' ? 'spdRange' : k);
+function syncSliders(){ SLIDERS.forEach(k => sliderEl(k).value = S[k]); $('boost').checked = !!S.boost; labelSliders(); }
 function labelSliders(){
   $('stabV').textContent = S.model === 'eleven_v3' ? ['Creative','Natural','Robust'][v3Stab(S.stab) * 2] : (+S.stab).toFixed(2);
   $('simV').textContent = (+S.sim).toFixed(2); $('styV').textContent = (+S.sty).toFixed(2); $('spdVal').textContent = (+S.spd).toFixed(2) + '×';
 }
-SLIDERS.forEach(k => $(k).addEventListener('input', () => { S[k] = +$(k).value; labelSliders(); save(); }));
+SLIDERS.forEach(k => sliderEl(k).addEventListener('input', () => { S[k] = +sliderEl(k).value; labelSliders(); save(); }));
 $('boost').onchange = () => { S.boost = $('boost').checked; save(); };
 $('resetVoice').onclick = () => { Object.assign(S, VOICE_DEFAULTS); save(); syncSliders(); status('Sliders reset.'); };
 $('loadVoices').onclick = async () => {
@@ -4048,9 +4258,44 @@ $('testVoice').onclick = async () => {
   }catch(e){ status(e.message || 'Voice test failed.', true); }
   finally{ setTimeout(() => { Buddy.testing = false; Buddy.refresh(); }, 1200); }
 };
-$('clearCache').onclick = async () => { try{ await caches.delete('wv-tts'); }catch{} memCache.clear(); status('Saved audio cleared.'); };
+$('clearCache').onclick = async () => { try{ await caches.delete('wv-tts'); }catch{} memCache.clear(); toast('Saved voice audio cleared'); };
 $('offClear').onclick = async () => { try{ await caches.delete(TILE_CACHE); }catch{} tileCache = null; LS.set('offlineTiles', 0); LS.set('offlineTrip', null); $('offUsage').textContent = 'Offline maps deleted.'; };
-$('clearHistory').onclick = () => { LS.set('recents', []); status('Search history cleared.'); };
+$('clearHistory').onclick = () => { LS.set('recents', []); toast('Search history cleared'); };
+
+/* fat-finger protection */
+KEY_FIELDS.forEach(([i, b]) => wireKey(i, b));
+confirmTap($('clearCache'), $('clearCache').onclick);
+confirmTap($('offClear'), $('offClear').onclick);
+confirmTap($('clearHistory'), $('clearHistory').onclick);
+confirmTap($('avRemove'), $('avRemove').onclick);
+confirmTap($('resetVoice'), $('resetVoice').onclick);
+
+/* app icon */
+function syncIconPick(){ let cur = LS.get('iconStyle', 'Default'); try{ if (NATIVE && NATIVE.getAppIcon) cur = NATIVE.getAppIcon(); }catch{} document.querySelectorAll('#iconPick .icn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.icon === cur))); }
+syncIconPick();
+document.querySelectorAll('#iconPick .icn').forEach(b => b.onclick = () => {
+  if (!NATIVE) { toast('Icon styles work in the Android app'); return; }
+  if (!NATIVE.setAppIcon){ toast('Install the newest app build to change the icon', 4500); return; }
+  if (LS.get('iconStyle', 'Default') === b.dataset.icon) return;
+  try{ NATIVE.setAppIcon(b.dataset.icon); LS.set('iconStyle', b.dataset.icon); syncIconPick(); toast('Icon changed. Your home screen can take a few seconds to catch up', 5000); }
+  catch{ toast("Couldn't change the icon"); }
+});
+$('iconFile').addEventListener('change', () => {
+  const file = $('iconFile').files && $('iconFile').files[0]; if (!file) return;
+  $('iconFile').value = '';
+  if (!NATIVE || !NATIVE.pinShortcut){ toast(NATIVE ? 'Install the newest app build to use your own icon' : 'Custom icons work in the Android app', 4500); return; }
+  const url = URL.createObjectURL(file), im = new Image();
+  im.onload = () => {
+    const N = 432, c = document.createElement('canvas'); c.width = c.height = N;
+    const k = Math.max(N / im.naturalWidth, N / im.naturalHeight), w = im.naturalWidth * k, h = im.naturalHeight * k;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, N, N); g.drawImage(im, (N - w) / 2, (N - h) / 2, w, h);
+    URL.revokeObjectURL(url);
+    try{ const ok = NATIVE.pinShortcut('Waypoint Voice', c.toDataURL('image/png').split(',')[1]); toast(ok === false ? "Your home screen app doesn't allow adding icons" : 'Tap Add on the popup to put it on your home screen', 5000); }
+    catch{ toast("Couldn't add the icon"); }
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); toast("That file isn't a picture this phone can read"); };
+  im.src = url;
+});
 
 /* ================= boot ================= */
 stack.push({ view:'explore', data:{} });
