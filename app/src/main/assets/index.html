@@ -5772,9 +5772,10 @@ async function claudeOnce(system, user, maxTokens = 1500){
   if (r.status === 401) throw new Error('Your Claude key was rejected. Check it in Settings → Assistant.');
   if (!r.ok){ let m = ''; try{ m = (await r.json()).error?.message || ''; }catch{} throw new Error(m || 'Claude error ' + r.status); }
   const j = await r.json();
+  claudeOnce.stop = j.stop_reason;
   return (j.content || []).map(b => b.text || '').join('');
 }
-const parseJSON = t => { try{ return JSON.parse(t); }catch{ const m = String(t).match(/\{[\s\S]*\}/); if (m) try{ return JSON.parse(m[0]); }catch{} } return null; };
+const parseJSON = t => { t = String(t).replace(/^[\s\S]*?```(?:json)?\s*/i, m => /```/.test(m) ? '' : m).replace(/```[\s\S]*$/, ''); try{ return JSON.parse(t); }catch{ const m = String(t).match(/\{[\s\S]*\}/); if (m) try{ return JSON.parse(m[0]); }catch{} } return null; };
 function renderStyle(){
   const P = S.styleProfile; $('styleCard').hidden = !P;
   if (!P) return;
@@ -5792,11 +5793,16 @@ $('styleGo').onclick = async () => {
   $('styleGo').disabled = true; $('styleStatus').className = 'status'; $('styleStatus').textContent = 'Listening to how they talk…';
   try{
     const prev = S.styleProfile && S.styleProfile.name === name ? S.styleProfile : null;
-    const out = await claudeOnce(
+    const ask = (extra, tokens) => claudeOnce(
       `You analyze how a person talks so an AI voice character can imitate their speaking style (word choice, not facts). Reply with JSON only:
 {"summary":"one sentence describing their vibe","fillers":["…"],"catchphrases":["short phrases they repeat"],"vocabulary":["distinctive words/slang"],"reactions":"how they react to surprise, success, annoyance, boredom","humor":"their kind of humor","rhythm":"sentence length, pacing, how they start/end sentences","tone":"how they sound, from any DELIVERY NOTES (energy, pace, laugh)","avoid":["things they never say or do"],"examples":["8-12 short NEW example lines in their style about driving or everyday things (do not copy long passages)"]}`,
-      `${prev ? `Earlier analysis to merge with and improve:\n${JSON.stringify(prev.raw)}\n\n` : ''}Transcript of ${name}:\n${sample}`, 1800);
-    const j = parseJSON(out); if (!j) throw new Error("Couldn't read the analysis. Try again.");
+      `${prev ? `Earlier analysis to merge with and improve:\n${JSON.stringify(prev.raw)}\n\n` : ''}Transcript of ${name}:\n${sample}${extra}`, tokens);
+    let j = parseJSON(await ask('', 5000));
+    if (!j){ // usually the reply got cut off or wrapped in extra text; ask once more, shorter
+      $('styleStatus').textContent = 'Almost there, tidying up the analysis…';
+      j = parseJSON(await ask('\n\nIMPORTANT: reply with ONLY the JSON object, nothing before or after it. Keep every field brief and give at most 8 examples.', 8000));
+    }
+    if (!j) throw new Error(claudeOnce.stop === 'max_tokens' ? "The analysis ran too long. Try with a shorter transcript (delete part of it) and tap again." : "Couldn't read the analysis. Try again.");
     const guide = [`Vibe: ${j.summary || ''}`, j.fillers?.length && `Fillers: ${j.fillers.join(', ')}`, j.catchphrases?.length && `Catchphrases (use sparingly): ${j.catchphrases.join(' | ')}`,
       j.vocabulary?.length && `Favorite words/slang: ${j.vocabulary.join(', ')}`, j.reactions && `Reactions: ${j.reactions}`, j.humor && `Humor: ${j.humor}`, j.rhythm && `Rhythm: ${j.rhythm}`, j.tone && `Tone: ${j.tone}`,
       j.avoid?.length && `Never: ${j.avoid.join('; ')}`, j.examples?.length && `Example lines in this style:\n- ${j.examples.join('\n- ')}`].filter(Boolean).join('\n');
@@ -5814,7 +5820,7 @@ $('styleLines').onclick = async () => {
   try{
     const kinds = CUSTOM_KINDS.map(c => `"${c.k}": ${c.label}${c.hint ? ` (placeholders you may use: ${c.hint})` : ''}`).join('\n');
     const out = await claudeOnce(`You write short spoken lines for a car navigation voice character. Reply with JSON only: an object whose keys are the line types and values are arrays of 4 short lines (under 15 words each). Keep placeholders exactly as written, like {place}. No emoji, no stage directions.`,
-      `Write lines in this speaking style:\n${P.guide}\n\nLine types:\n${kinds}`, 1500);
+      `Write lines in this speaking style:\n${P.guide}\n\nLine types:\n${kinds}`, 4000);
     const j = parseJSON(out); if (!j) throw new Error("Couldn't read the lines. Try again.");
     const lines = {}; CUSTOM_KINDS.forEach(c => { if (Array.isArray(j[c.k]) && j[c.k].length) lines[c.k] = j[c.k].map(x => String(x).trim()).filter(Boolean).slice(0, 6); });
     S.customLines = { ...(S.customLines || {}), ...lines }; save();
