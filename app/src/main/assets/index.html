@@ -938,7 +938,7 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
       <div class="btnrow"><button class="pbtn primary" id="ppGo" type="button"><span class="ms">download</span>Download places</button><button class="pbtn outline" id="ppStop" type="button" hidden>Pause</button><button class="pbtn outline danger" id="ppDel" type="button" hidden>Delete offline places</button></div>
       <h3>Import from Google Maps</h3>
       <div class="small">Bring in your saved places, lists and labeled places (Home, Work and the rest) from Google. Get the file at <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a>: tap <b>Deselect all</b>, tick <b>Maps (your places)</b> and <b>Saved</b>, then <b>Next step → Create export</b>. Google emails you a download link; pick that .zip here.</div>
-      <div class="btnrow"><label class="pbtn primary" for="gmFile"><span class="ms">upload_file</span>Pick Takeout file</label><input type="file" id="gmFile" accept=".zip,.json,.csv,application/zip,application/json,text/csv" multiple hidden></div>
+      <div class="btnrow"><label class="pbtn primary" for="gmFile"><span class="ms">upload_file</span>Pick Takeout file</label><input type="file" id="gmFile" accept=".zip,.json,.csv,application/zip,application/x-zip-compressed,application/json,text/csv,text/comma-separated-values" hidden></div>
       <div class="status" id="gmStatus"></div>
       <h3>History &amp; saved audio</h3>
       <div class="btnrow"><button class="pbtn outline danger" id="clearHistory" type="button">Clear search history</button><button class="pbtn outline danger" id="clearCache" type="button">Clear saved voice audio</button></div>
@@ -1501,7 +1501,7 @@ const ppKey = (lat, lng) => `${Math.floor(lat * 10)}:${Math.floor(lng * 10)}`;
 function ppCovered(lat, lng){
   const m = PP.meta; if (!m || !m.cells) return false;
   if (hav([m.lat, m.lng], [lat, lng]) > m.radiusKm * 1000) return false;
-  return !!m.cells[`${Math.floor(lat * 2)}:${Math.floor(lng * 2)}`];
+  return !!m.cells[`${Math.floor(lat * 5)}:${Math.floor(lng * 5)}`];
 }
 function ppTileKeys(s_, w, n, e){
   const out = [];
@@ -1544,7 +1544,7 @@ async function ppNameSearch(q){
   return out.map(r => { const pl = ppPlace(r); pl.dist = hav([lat, lng], [pl.lat, pl.lng]); return pl; })
     .sort((a, b) => a.dist - b.dist).slice(0, 8);
 }
-const PP_QUERY = b => `[out:json][timeout:170][maxsize:1073741824];(
+const PP_QUERY = b => `[out:json][timeout:90];(
 nwr["amenity"~"^(restaurant|fast_food|food_court|cafe|ice_cream|bar|pub|fuel|charging_station|pharmacy|hospital|clinic|bank|atm|post_office|cinema|library|place_of_worship|police|car_wash|car_rental|theatre|marketplace|toilets)$"](${b});
 nwr["amenity"="parking"]["name"](${b});
 nwr["name"]["shop"](${b});
@@ -1553,16 +1553,30 @@ nwr["name"]["leisure"~"^(park|fitness_centre|stadium|golf_course|sports_centre|p
 );out center tags;`;
 async function ppFetch(box){
   let lastErr;
-  for (let k = 0; k < OVERPASS.length; k++){
+  const q = PP_QUERY(box.map(v => v.toFixed(2)).join(','));
+  for (let k = 0; k < OVERPASS.length * 2; k++){
+    if (PP.run?.stop) throw new Error('stopped');
     const u = OVERPASS[(opStart + k) % OVERPASS.length];
     try{
-      const r = await fetchTimeout(u, 180000, { method:'POST', body:'data=' + encodeURIComponent(PP_QUERY(box.map(v => v.toFixed(2)).join(','))), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } });
-      if (r.status === 429 || r.status === 504){ lastErr = new Error('busy'); await sleep(4000); continue; }
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      // same kind of request the rest of the app uses (known to work on the phone)
+      const r = await fetchTimeout(u + '?data=' + encodeURIComponent(q), 100000);
+      if (r.status === 429 || r.status === 503 || r.status === 504){
+        lastErr = new Error(r.status === 429 ? 'Map server says slow down' : 'Map server is busy');
+        PP.note = lastErr.message + ', waiting a moment…'; PP.onNote && PP.onNote();
+        await sleep(k < OVERPASS.length ? 6000 : 15000); continue;
+      }
+      if (!r.ok) throw new Error('Map server error ' + r.status);
       const j = await r.json();
       if (j.remark && /runtime error|timed out|out of memory/i.test(j.remark)) throw new Error('too big');
+      opStart = OVERPASS.indexOf(u); PP.note = '';
       return j.elements || [];
-    }catch(e){ lastErr = e; if (/too big/.test(e.message)) throw e; }
+    }catch(e){
+      if (/too big/.test(e.message)) throw e;
+      lastErr = e.name === 'AbortError' ? new Error('too big') : e;
+      if (e.name === 'AbortError') throw lastErr; // took too long: split the area instead
+      PP.note = (lastErr.message || 'Network error') + ', trying another server…'; PP.onNote && PP.onNote();
+      await sleep(2000);
+    }
   }
   throw lastErr || new Error('Download failed');
 }
@@ -1594,16 +1608,18 @@ async function ppCell(s_, w, n, e){
 }
 async function ppDownload(radiusMi, onProgress){
   if (PP.run) return;
+  PP.lastErr = ''; PP.note = '';
   const [lat, lng] = st.pos ? st.pos.ll : here();
   const radiusKm = radiusMi * 1.609;
-  const same = PP.meta && PP.meta.radiusKm === radiusKm && hav([PP.meta.lat, PP.meta.lng], [lat, lng]) < 8000;
-  const meta = same ? PP.meta : { lat, lng, radiusKm, radiusMi, cells:{}, count:0, started:Date.now() };
+  const same = PP.meta && PP.meta.v === 2 && PP.meta.radiusKm === radiusKm && hav([PP.meta.lat, PP.meta.lng], [lat, lng]) < 8000;
+  const meta = same ? PP.meta : { v:2, lat, lng, radiusKm, radiusMi, cells:{}, count:0, started:Date.now() };
   if (!same && PP.meta) await ppClear(true);
   const dLat = radiusKm / 111, dLng = radiusKm / (111 * Math.cos(rad(meta.lat)));
   const cells = [];
-  for (let a = Math.floor((meta.lat - dLat) * 2); a <= Math.floor((meta.lat + dLat) * 2); a++)
-    for (let b = Math.floor((meta.lng - dLng) * 2); b <= Math.floor((meta.lng + dLng) * 2); b++){
-      const cs = a / 2, cw = b / 2, cn = cs + 0.5, ce = cw + 0.5;
+  // 0.2° pieces (about 14 miles): small enough for the free servers to answer quickly
+  for (let a = Math.floor((meta.lat - dLat) * 5); a <= Math.floor((meta.lat + dLat) * 5); a++)
+    for (let b = Math.floor((meta.lng - dLng) * 5); b <= Math.floor((meta.lng + dLng) * 5); b++){
+      const cs = +(a / 5).toFixed(1), cw = +(b / 5).toFixed(1), cn = +(cs + 0.2).toFixed(1), ce = +(cw + 0.2).toFixed(1);
       const nearLat = Math.max(cs, Math.min(cn, meta.lat)), nearLng = Math.max(cw, Math.min(ce, meta.lng));
       if (hav([meta.lat, meta.lng], [nearLat, nearLng]) <= radiusKm * 1000) cells.push({ key:`${a}:${b}`, box:[cs, cw, cn, ce], d:hav([meta.lat, meta.lng], [(cs + cn) / 2, (cw + ce) / 2]) });
     }
@@ -1618,18 +1634,18 @@ async function ppDownload(radiusMi, onProgress){
       if (PP.run.stop) break;
       if (meta.cells[c.key]) continue;
       onProgress && onProgress(meta, 'Downloading');
-      try{ meta.count += await ppCell(...c.box); meta.cells[c.key] = 1; }
-      catch{ failed++; }
+      try{ meta.count += await ppCell(...c.box); if (!PP.run.stop) meta.cells[c.key] = 1; }
+      catch(e){ if (!PP.run.stop){ failed++; PP.lastErr = e.message; } }
       LS.set('placePack', meta);
       onProgress && onProgress(meta, 'Downloading');
-      await sleep(1500); // be gentle with the free map servers
+      await sleep(800); // be gentle with the free map servers
     }
   } finally {
     const stopped = PP.run.stop; PP.run = null;
     try{ await PP.wake?.release(); }catch{} PP.wake = null;
     if (!stopped && !failed) meta.updated = Date.now();
     LS.set('placePack', meta);
-    onProgress && onProgress(meta, stopped ? 'Paused' : failed ? `Done, but ${failed} area${failed > 1 ? 's' : ''} failed. Tap Download to retry them.` : 'Done');
+    onProgress && onProgress(meta, stopped ? 'Paused' : failed ? `${failed} area${failed > 1 ? 's' : ''} failed${PP.lastErr ? ` (${PP.lastErr})` : ''}. Tap Download to retry` : 'Done');
   }
 }
 async function ppClear(quiet){
@@ -5176,7 +5192,7 @@ $('asstName').addEventListener('change', applyPronouns);
 applyPronouns();
 /* offline places settings */
 function ppEstimate(mi){
-  return ({ 25:'Takes a minute or two, roughly 5–15 MB.', 50:'Takes about 5 minutes, roughly 10–30 MB.', 100:'Takes about 10–20 minutes on Wi-Fi, roughly 25–70 MB.', 200:'Takes about 30–60 minutes on Wi-Fi, roughly 60–200 MB (more if it reaches a big city).' })[mi] + ' Keep the app open while it downloads; you can pause and pick up where you left off.';
+  return ({ 25:'Takes about 2–5 minutes, roughly 5–15 MB.', 50:'Takes about 5–15 minutes, roughly 10–30 MB.', 100:'Takes about 20–40 minutes on Wi-Fi, roughly 25–70 MB.', 200:'Takes about 1–2 hours on Wi-Fi, roughly 60–200 MB (more if it reaches a big city).' })[mi] + ' Keep the app open while it downloads; you can pause and pick up where you left off.';
 }
 function ppUi(meta, state){
   const m = meta || PP.meta, running = !!PP.run;
@@ -5185,7 +5201,7 @@ function ppUi(meta, state){
   const done = m ? Object.keys(m.cells || {}).length : 0, total = m ? m.total || 0 : 0;
   $('ppBar').hidden = !m || (!running && done >= total);
   $('ppBar').querySelector('i').style.width = total ? (done / total * 100) + '%' : '0%';
-  $('ppStatus').textContent = !m ? '' : running ? `${state || 'Downloading'}… ${done} of ${total} areas · ${m.count.toLocaleString()} places`
+  $('ppStatus').textContent = !m ? '' : running ? `${state || 'Downloading'}… ${done} of ${total} areas · ${m.count.toLocaleString()} places${PP.note ? ` · ${PP.note}` : ''}`
     : done >= total ? `${m.count.toLocaleString()} places saved within ${m.radiusMi} miles${m.updated ? ` · updated ${new Date(m.updated).toLocaleDateString([], { month:'short', day:'numeric' })}` : ''}.`
     : `${state && state !== 'Downloading' ? state + ' · ' : 'Paused · '}${done} of ${total} areas done, ${m.count.toLocaleString()} places so far.`;
   $('ppGo').hidden = running;
@@ -5199,6 +5215,7 @@ $('ppGo').onclick = () => {
   ppDownload(S.ppRadius, (m, stt) => { if (!$('settings').hidden) ppUi(m, stt); if (stt === 'Done') toast(`Offline places ready: ${m.count.toLocaleString()} places`); }).catch(e => toast(e.message || 'Download failed'));
   setTimeout(() => ppUi(), 50);
 };
+PP.onNote = () => { if (!$('settings').hidden) ppUi(); };
 $('ppStop').onclick = () => { if (PP.run) PP.run.stop = true; $('ppStop').textContent = 'Pausing…'; setTimeout(() => { $('ppStop').textContent = 'Pause'; }, 4000); };
 confirmTap($('ppDel'), async () => { await ppClear(); ppUi(); });
 /* ---------- import saved places from Google Takeout ---------- */
@@ -5306,7 +5323,8 @@ async function importTakeout(files){
 }
 $('gmFile').addEventListener('change', async () => {
   const files = [...($('gmFile').files || [])]; $('gmFile').value = '';
-  if (!files.length) return;
+  if (!files.length){ $('gmStatus').textContent = "The file didn't come through. Try picking it from the Downloads folder, or unzip it and pick Saved Places.json."; return; }
+  $('gmStatus').textContent = `Opening ${files[0].name} (${Math.max(1, Math.round(files[0].size / 1024))} KB)…`;
   try{ await importTakeout(files); }catch(e){ $('gmStatus').textContent = e.message || "Couldn't read that file"; }
 });
 /* fat-finger protection */
