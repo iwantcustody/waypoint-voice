@@ -396,7 +396,7 @@ details.adv[open] summary::after{transform:rotate(180deg)}
 .usage .progress i{background:var(--blue)}
 .check{display:flex;gap:12px;align-items:center;font-size:15px;padding:4px 0}
 .check input{width:20px;height:20px;accent-color:var(--blue);flex:none}
-.status{font-size:14px;color:var(--muted);min-height:1.2em}
+.status{font-size:14px;color:var(--muted);min-height:1.2em;white-space:pre-line}
 .status.err{color:var(--red)}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 .layercards{display:flex;gap:12px;padding:8px 20px 12px}
@@ -5706,26 +5706,50 @@ $('ytGo').onclick = async () => {
   const ep = m => `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(S.geminiKey.trim())}`;
   const msgOf = t => t.match(/"message":\s*"([^"]+)/)?.[1] || t.slice(0, 160);
   const busy = (st, t) => st === 503 || st === 500 || /high demand|overloaded|unavailable|try again later/i.test(t);
-  // Try your chosen model a few times, then the other Gemini model, waiting a bit between tries
-  const models = [S.geminiModel, ...[...$('geminiModel').options].map(o => o.value).filter(m => m !== S.geminiModel)];
-  const plan = [[models[0], 0], [models[0], 8], [models[1], 3], [models[0], 20], [models[1], 20]].filter(x => x[0]);
   const sleep = s => new Promise(res => setTimeout(res, s * 1000));
+  // Every Gemini model your key can use (free quotas are per model, so a busy or maxed-out one doesn't block the others)
+  const listModels = async () => {
+    try{
+      const r = await fetchTimeout(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(S.geminiKey.trim())}`, 15000);
+      if (!r.ok) return [];
+      const ms = ((await r.json()).models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+        .map(m => String(m.name || '').replace(/^models\//, ''))
+        .filter(n => /^gemini-[\d.]+-(flash|pro)/.test(n) && !/tts|image|live|audio|embed|robotics|computer|native|thinking/.test(n));
+      const ver = n => parseFloat(n.split('-')[1]) || 0, rank = n => (/preview|exp/.test(n) ? 1 : 0) + (/latest/.test(n) ? 0.5 : 0) + (/pro/.test(n) ? 0.2 : 0);
+      return ms.sort((a, b) => ver(b) - ver(a) || rank(a) - rank(b));
+    }catch{ return []; }
+  };
+  const nice = m => m.replace(/^gemini-/, '').replace(/-/g, ' ');
   try{
-    let r = null, lastMsg = '', noRes = false;
+    $('styleStatus').textContent = 'Gemini is watching the video… (can take a minute)';
+    const found = await listModels();
+    const models = [...new Set([S.geminiModel, ...[...$('geminiModel').options].map(o => o.value), ...found])].filter(m => !found.length || found.includes(m) || m === S.geminiModel).slice(0, 6);
+    const plan = [...models.map((m, i) => [m, i ? 2 : 0]), ...models.slice(0, 3).map((m, i) => [m, i ? 3 : 20])];
+    const tried = {};
+    let r = null, lastMsg = '', noRes = false, ok = false;
     for (let i = 0; i < plan.length; i++){
       const [model, wait] = plan[i];
-      if (wait){ for (let s = wait; s > 0; s--){ $('styleStatus').textContent = `Gemini is busy right now. Trying again in ${s}s… (${i + 1}/${plan.length})`; await sleep(1); } }
-      $('styleStatus').textContent = i ? `Trying again${model !== models[0] ? ' with the backup model' : ''}… (can take a minute)` : 'Gemini is watching the video… (can take a minute)';
+      if (tried[model] && !/busy/.test(tried[model])) continue; // only retry models that were just busy
+      if (wait){ for (let s = wait; s > 0; s--){ $('styleStatus').textContent = `Gemini is busy. Trying ${nice(model)} in ${s}s… (${i + 1}/${plan.length})`; await sleep(1); } }
+      $('styleStatus').textContent = `Gemini (${nice(model)}) is watching the video… (can take a minute)`;
       const b = make(true); if (noRes) delete b.generationConfig.mediaResolution;
-      r = await fetchTimeout(ep(model), 240000, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(b) });
-      if (r.ok) break;
+      try{ r = await fetchTimeout(ep(model), 240000, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(b) }); }
+      catch(e){ tried[model] = e.name === 'AbortError' ? 'timed out' : 'no connection'; continue; }
+      if (r.ok){ ok = true; break; }
       const t = await r.text(); lastMsg = msgOf(t);
       if (r.status === 400 && /media_?resolution/i.test(t) && !noRes){ noRes = true; i--; continue; }
-      if (busy(r.status, t)) continue;
-      if (r.status === 429) throw new Error('Gemini free limit reached for now. Try a shorter part, or again in a few minutes.');
+      if (r.status === 404){ tried[model] = 'not available'; continue; }
+      if (r.status === 429){ tried[model] = 'free limit used up'; continue; }
+      if (busy(r.status, t)){ tried[model] = 'busy'; continue; }
       throw new Error(ytErr(lastMsg || 'error ' + r.status));
     }
-    if (!r.ok) throw new Error("Google's Gemini servers are overloaded right now (not a problem with your key or the video). Give it 10–15 minutes and tap the button again.");
+    if (!ok){
+      const summary = Object.entries(tried).map(([m, why]) => `${nice(m)}: ${why}`).join(' · ');
+      const allBusy = Object.values(tried).every(w => w === 'busy');
+      throw new Error((allBusy
+        ? "Every Gemini model said it was busy. If this keeps happening for hours, it's usually this particular video rather than Google: long live-stream replays are heavy to process. Try a regular (non-live) video, or one that's under an hour."
+        : "Gemini couldn't do it right now.") + `\nTried: ${summary}` + (lastMsg ? `\nGoogle said: ${lastMsg}` : ''));
+    }
     const j = await r.json();
     const txt = (j.candidates?.[0]?.content?.parts || []).map(p_ => p_.text || '').join('').trim();
     if (!txt) throw new Error("Gemini couldn't get any speech from that part. Try a different stretch.");
