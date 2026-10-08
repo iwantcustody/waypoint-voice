@@ -173,6 +173,22 @@ label.pbtn{cursor:pointer}
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
 .ph.skel{animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.5}}
+.brandlogo{width:48px;height:48px;object-fit:contain;border-radius:10px;background:#fff;padding:4px;flex:none;box-shadow:0 0 0 1px var(--line)}
+.meta.rating{display:flex;align-items:center;gap:6px;color:var(--ink)}
+.meta.rating span{color:var(--muted)}
+.stars{display:inline-flex;gap:1px}
+.stars i{width:13px;height:13px;background:var(--line);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.stars i.on{background:#fbbc04}
+.stars i.half{background:linear-gradient(90deg,#fbbc04 50%,var(--line) 50%)}
+.ph.more{display:grid;place-items:center;align-content:center;gap:4px;color:var(--blue-dark);font-size:13px;font-weight:500}
+.reviews{padding:6px 16px 10px;display:grid;gap:10px}
+.reviews a{font-size:14px;font-weight:500}
+.rev{background:var(--surface2);border-radius:12px;padding:10px 12px}
+.rev .rh{display:flex;align-items:center;gap:8px;font-size:14px;flex-wrap:wrap}
+.rev .rh span{color:var(--muted);font-size:12px}
+.rev p{margin:6px 0 0;font-size:14px;line-height:1.45}
+.ghours{padding:0 16px 8px 72px;font-size:14px;line-height:1.7}
+.gattr{font-size:12px;color:var(--muted);padding:8px 16px 16px}
 .phnote{font-size:12px;color:var(--muted);padding:2px 16px 8px}
 .hl{display:flex;flex-wrap:wrap;gap:6px;padding:4px 16px 10px}
 .hlc{display:flex;align-items:center;gap:4px;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:4px 10px 4px 6px;color:var(--ink)}
@@ -822,6 +838,29 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
       <input type="file" id="buddyFile" accept="image/*" hidden>
     </div>
 
+    <div class="pgroup spage" data-page="google" hidden>
+      <div class="small">Adds real photos, star ratings, reviews, price level and hours to business pages, straight from Google. Uses Google's Places API, which needs a card on file with Google Cloud, but this app stays inside Google's free monthly allowance by itself (limits below).</div>
+      <div class="fld">
+        <label for="gKey">Google Places API key</label>
+        <div class="inl"><input id="gKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza…"><button class="pbtn outline" id="toggleGoogle" type="button">Show</button></div>
+        <div class="status" id="gStatus"></div>
+      </div>
+      <details class="adv"><summary>How to get a key (about 5 minutes)</summary>
+        <div class="advbody small">
+          <div>1. Go to <a href="https://console.cloud.google.com" target="_blank" rel="noopener">console.cloud.google.com</a> and sign in. Accept the terms and create a project (any name).</div>
+          <div>2. Set up billing when asked (Billing → link a billing account). Google needs a card even for the free allowance.</div>
+          <div>3. Search the top bar for <b>Places API (New)</b> → <b>Enable</b>.</div>
+          <div>4. <b>APIs &amp; Services → Credentials → Create credentials → API key</b>. Copy it here.</div>
+          <div>5. Optional but smart: click the key → <b>API restrictions</b> → <b>Restrict key</b> → pick only Places API (New) → Save.</div>
+          <div>6. Extra safety: <b>APIs &amp; Services → Places API (New) → Quotas</b>, and set the per-day limits to about 35. Then even a leaked key can't run up a bill.</div>
+        </div>
+      </details>
+      <div class="fld"><label for="gDay">Business lookups per day <b id="gDayV"></b></label><input type="range" id="gDay" min="5" max="33" step="1"></div>
+      <div class="fld"><label for="gPhotoDay">Photos per day <b id="gPhotoDayV"></b></label><input type="range" id="gPhotoDay" min="5" max="33" step="1"></div>
+      <div class="usage" id="gUsage"></div>
+      <div class="small">Google gives about 1,000 lookups and 1,000 photos free each month. The app also stops for the month at 950 of each, so it stays free as long as only this phone uses the key. Places you open again the same day don't count twice.</div>
+    </div>
+
     <div class="pgroup spage" data-page="traffic" hidden>
       <div class="small">Free: sign up at developer.tomtom.com (no credit card), open your dashboard, and copy the API key. Turns on traffic-aware routes, traffic colors, fuel-efficient routes, carpool and FasTrak options, and "faster route found" alerts. The free tier covers far more than one driver uses.</div>
       <div class="fld"><label for="ttKey">TomTom API key</label><div class="inl"><input id="ttKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste key"><button class="pbtn outline" id="toggleTT" type="button">Change</button></div></div>
@@ -934,9 +973,9 @@ const S = {
   headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), pron:LS.get('pron','it'), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
-Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true) });
+Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true), gKey:LS.get('gKey',''), gDay:LS.get('gDay',25), gPhotoDay:LS.get('gPhotoDay',30) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['gKey','gDay','gPhotoDay','vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -2542,7 +2581,11 @@ async function viewPlace(d){
   if (pt.x < 30 || pt.x > size.x - 30 || pt.y < 140 || pt.y > size.y - off - 30) map.setView([p.lat, p.lng], Math.max(map.getZoom(), 15));
   if (p.name === 'Dropped pin' && !p.sub){ await reverseGeocode(p); if (curData().place === p) drawPlace(p); }
   if (!p.tags && p.osm){ await enrichPlace(p); if (curData().place === p) drawPlace(p); }
-  if (!p.media){ await loadPlaceMedia(p); if (curData().place === p && curView() === 'place') drawPlace(p); }
+  const redraw = () => { if (curData().place === p && curView() === 'place') drawPlace(p); };
+  await Promise.all([
+    !p.media ? loadPlaceMedia(p).then(redraw) : null,
+    p.google === undefined && googleWanted(p) ? loadGoogle(p).then(redraw) : null
+  ]);
 }
 
 /* ---------- photos & descriptions (Wikimedia, free) ---------- */
@@ -2583,6 +2626,20 @@ async function loadPlaceMedia(p){
       if (!wiki && e.sitelinks?.enwiki) wiki = ['en', e.sitelinks.enwiki.title];
     }).catch(() => {}));
   }
+  // chains (McDonald's, Starbucks…): logo and an "about" from the brand's Wikidata entry
+  const bq = t['brand:wikidata'];
+  if (bq && /^Q\d+$/.test(bq) && bq !== t.wikidata){
+    jobs.push(getJSON(`https://www.wikidata.org/w/api.php?action=wbgetentities&${WM}&ids=${bq}&props=claims|sitelinks`).then(async j => {
+      const e = j.entities?.[bq]; if (!e) return;
+      if (!wiki && e.sitelinks?.enwiki){ wiki = ['en', e.sitelinks.enwiki.title]; p.media.brandAbout = true; }
+      const logo = e.claims?.P154?.[0]?.mainsnak?.datavalue?.value;
+      if (logo){
+        const lj = await getJSON(`https://commons.wikimedia.org/w/api.php?action=query&${WM}&titles=${encodeURIComponent('File:' + logo)}&prop=imageinfo&iiprop=url&iiurlwidth=160`);
+        const ii = Object.values(lj.query?.pages || {})[0]?.imageinfo?.[0];
+        if (ii) p.media.logo = ii.thumburl || ii.url;
+      }
+    }).catch(() => {}));
+  }
   await Promise.all(jobs);
   const tasks = [
     commonsFiles([...new Set(files)]).then(ph => p.media.photos.push(...ph)).catch(() => {}),
@@ -2599,6 +2656,99 @@ async function loadPlaceMedia(p){
   }
   if (!p.media.about && t.description) p.media.about = { text:t.description };
 }
+/* ---------- Google Places: photos, ratings, reviews (optional, needs a key) ---------- */
+const today_ = () => new Date().toLocaleDateString('en-CA');
+function gUse(){
+  const u = LS.get('gUse', null) || {};
+  const d = today_(), mo = d.slice(0, 7);
+  if (!u.d || u.d.day !== d) u.d = { day:d, details:0, photos:0 };
+  if (!u.m || u.m.mon !== mo) u.m = { mon:mo, details:0, photos:0 };
+  return u;
+}
+const G_MONTH_CAP = 950;
+function gCan(kind){ const u = gUse(); return u.d[kind] < (kind === 'details' ? S.gDay : S.gPhotoDay) && u.m[kind] < G_MONTH_CAP; }
+function gCount(kind, n = 1){ const u = gUse(); u.d[kind] += n; u.m[kind] += n; LS.set('gUse', u); }
+function googleWanted(p){
+  if (!S.gKey || !p || !p.name || p.isMe || p.name === 'Dropped pin') return false;
+  const t = p.tags || {};
+  return !!(p.cat || t.amenity || t.shop || t.tourism || t.leisure || t.office || t.craft || t.brand);
+}
+const gKeyOf = p => (p.name || '') + '@' + p.lat.toFixed(4) + ',' + p.lng.toFixed(4);
+function gCacheGet(p){ const c = LS.get('gCache', {}) || {}, e = c[gKeyOf(p)]; return e && Date.now() - e.t < 864e5 ? e.v : undefined; }
+function gCachePut(p, v){
+  const c = LS.get('gCache', {}) || {}; c[gKeyOf(p)] = { t:Date.now(), v };
+  const ks = Object.keys(c); if (ks.length > 60) ks.sort((a, b) => c[a].t - c[b].t).slice(0, ks.length - 60).forEach(k => delete c[k]);
+  try{ LS.set('gCache', c); }catch{}
+}
+async function gFetch(url, opts = {}, fields){
+  const headers = { 'X-Goog-Api-Key':S.gKey.trim(), ...(fields ? { 'X-Goog-FieldMask':fields } : {}), ...(opts.headers || {}) };
+  const r = await fetchTimeout(url, 12000, { ...opts, headers });
+  if (r.status === 403 || r.status === 400){ const t = await r.text(); throw new Error(/billing/i.test(t) ? 'Turn on billing for your Google Cloud project' : /not been used|disabled/i.test(t) ? 'Enable "Places API (New)" in Google Cloud' : /API key/i.test(t) ? 'Google rejected the key' : 'Google error ' + r.status); }
+  if (r.status === 429) throw new Error('Google limit reached for today');
+  if (!r.ok) throw new Error('Google error ' + r.status);
+  return r.json();
+}
+const PRICE = { PRICE_LEVEL_INEXPENSIVE:'$', PRICE_LEVEL_MODERATE:'$$', PRICE_LEVEL_EXPENSIVE:'$$$', PRICE_LEVEL_VERY_EXPENSIVE:'$$$$' };
+async function loadGoogle(p){
+  const hit = gCacheGet(p); if (hit !== undefined){ p.google = hit; return; }
+  if (!gCan('details')){ p.google = null; p.googleNote = 'Daily Google limit reached'; return; }
+  p.google = 'loading';
+  try{
+    // 1) find Google's ID for this place (free)
+    const d = 0.0025;
+    const sr = await gFetch('https://places.googleapis.com/v1/places:searchText', { method:'POST', headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify({ textQuery:p.name, locationRestriction:{ rectangle:{ low:{ latitude:p.lat - d, longitude:p.lng - d }, high:{ latitude:p.lat + d, longitude:p.lng + d } } } }) }, 'places.id');
+    const id = sr.places?.[0]?.id;
+    if (!id){ p.google = null; gCachePut(p, null); return; }
+    // 2) details (counts toward the free monthly allowance)
+    gCount('details');
+    const g = await gFetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}?languageCode=en`, {},
+      'id,displayName,location,rating,userRatingCount,priceLevel,photos,regularOpeningHours,currentOpeningHours.openNow,nationalPhoneNumber,websiteUri,editorialSummary,reviews,googleMapsUri,businessStatus');
+    if (g.location && hav([p.lat, p.lng], [g.location.latitude, g.location.longitude]) > 400){ p.google = null; gCachePut(p, null); return; }
+    const v = {
+      name:g.displayName?.text || '', rating:g.rating || 0, count:g.userRatingCount || 0, price:PRICE[g.priceLevel] || '',
+      open:g.currentOpeningHours ? g.currentOpeningHours.openNow : null, hours:g.regularOpeningHours?.weekdayDescriptions || null,
+      phone:g.nationalPhoneNumber || '', web:g.websiteUri || '', about:g.editorialSummary?.text || '', maps:g.googleMapsUri || '',
+      status:g.businessStatus || '',
+      reviews:(g.reviews || []).slice(0, 3).map(r => ({ who:r.authorAttribution?.displayName || 'Google user', stars:r.rating || 0, when:r.relativePublishTimeDescription || '', text:r.text?.text || r.originalText?.text || '' })),
+      photoRefs:(g.photos || []).slice(0, 10).map(ph => ({ name:ph.name, by:ph.authorAttributions?.[0]?.displayName || '' })),
+      photos:[]
+    };
+    p.google = v;
+    await gPhotos(p, 3);
+    gCachePut(p, p.google);
+  }catch(e){ p.google = null; p.googleNote = e.message; }
+}
+// turn photo references into image links, a few at a time (each one counts as a Google photo)
+async function gPhotos(p, n){
+  const v = p.google; if (!v || !v.photoRefs) return;
+  const todo = v.photoRefs.slice(v.photos.length, v.photos.length + n);
+  for (const ref of todo){
+    if (!gCan('photos')){ p.googleNote = 'Daily photo limit reached'; break; }
+    gCount('photos');
+    try{
+      const j = await gFetch(`https://places.googleapis.com/v1/${ref.name}/media?maxWidthPx=1000&skipHttpRedirect=true`);
+      if (j.photoUri) v.photos.push({ thumb:j.photoUri, full:j.photoUri, page:v.maps || j.photoUri, credit:(ref.by ? ref.by + ' · ' : '') + 'Google' });
+    }catch(e){ p.googleNote = e.message; break; }
+  }
+}
+function stars(r){ const f = Math.round(r * 2) / 2; let h = ''; for (let i = 1; i <= 5; i++) h += `<i class="${f >= i ? 'on' : f >= i - 0.5 ? 'half' : ''}"></i>`; return `<span class="stars">${h}</span>`; }
+function gStatusText(){
+  const u = gUse(), el = $('gUsage'); if (!el) return;
+  el.innerHTML = `<div>Today: <b>${u.d.details}</b> of ${S.gDay} lookups · <b>${u.d.photos}</b> of ${S.gPhotoDay} photos</div><div>This month: <b>${u.m.details}</b> of ${G_MONTH_CAP} lookups · <b>${u.m.photos}</b> of ${G_MONTH_CAP} photos</div>`;
+  $('gDay').value = S.gDay; $('gDayV').textContent = S.gDay; $('gPhotoDay').value = S.gPhotoDay; $('gPhotoDayV').textContent = S.gPhotoDay;
+}
+$('gKey').addEventListener('change', async () => {
+  S.gKey = $('gKey').value.trim(); save();
+  const st_ = $('gStatus'); st_.className = 'status';
+  if (!S.gKey){ st_.textContent = ''; return; }
+  st_.textContent = 'Checking key…';
+  try{ await gFetch('https://places.googleapis.com/v1/places:searchText', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ textQuery:'coffee' }) }, 'places.id'); st_.textContent = 'Key works. Open any business to see photos and reviews.'; }
+  catch(e){ st_.textContent = e.message; st_.className = 'status err'; }
+});
+$('gDay').addEventListener('input', () => { S.gDay = +$('gDay').value; save(); gStatusText(); });
+$('gPhotoDay').addEventListener('input', () => { S.gPhotoDay = +$('gPhotoDay').value; save(); gStatusText(); });
+
 let viewerList = [], viewerIdx = 0;
 function openPhoto(list, i){
   viewerList = list; viewerIdx = i; drawPhoto(); openModal('photoModal');
@@ -2615,10 +2765,12 @@ $('phPrev').onclick = () => { if (viewerIdx > 0){ viewerIdx--; drawPhoto(); } };
 $('phNext').onclick = () => { if (viewerIdx < viewerList.length - 1){ viewerIdx++; drawPhoto(); } };
 function drawPlace(p){
   const t = p.tags || {};
-  const oh = parseOH(t.opening_hours), hs = hoursStatus(oh);
+  const gH = p.google && p.google !== 'loading' && p.google.hours ? p.google : null; // Google's hours are usually fresher
+  const oh = gH ? null : parseOH(t.opening_hours), hs = hoursStatus(oh);
   const dist = st.pos ? fmtDist(hav(st.pos.ll, [p.lat, p.lng])) : '';
   const lbl = placeLabel(p), isS = isSaved(p);
-  const phone = t.phone || t['contact:phone'], web = t.website || t['contact:website'];
+  const G = p.google && p.google !== 'loading' ? p.google : null;
+  const phone = t.phone || t['contact:phone'] || G?.phone, web = t.website || t['contact:website'] || G?.web;
   const extra = [];
   if (t.brand && t.brand !== p.name) extra.push(['storefront', t.brand]);
   if (t['fuel:diesel'] === 'yes' || t['fuel:octane_91'] || t['fuel:octane_87']) extra.push(['local_gas_station', ['Regular', t['fuel:diesel'] === 'yes' && 'Diesel', t['fuel:e85'] === 'yes' && 'E85'].filter(Boolean).join(' · ')]);
@@ -2639,13 +2791,19 @@ function drawPlace(p){
   const fb = t['contact:facebook'] || t.facebook, ig = t['contact:instagram'] || t.instagram;
   const email = t.email || t['contact:email'];
   const media = p.media;
+  const allPhotos = [...(G ? G.photos : []), ...(media ? media.photos : [])];
+  p._photos = allPhotos;
+  const gLoading = p.google === 'loading';
+  const about = (media && media.about && !media.brandAbout) ? media.about : G && G.about ? { text:G.about, google:true } : media && media.about ? media.about : null;
   const link = (u, base) => /^https?:/.test(u) ? u : base + u.replace(/^@/, '');
   sbody.innerHTML = `
     <div class="shead"><div class="grow">
       <h2>${esc(p.name)}</h2>
+      ${G && G.rating ? `<div class="meta rating"><b>${G.rating.toFixed(1)}</b>${stars(G.rating)}<span>(${G.count.toLocaleString()})</span>${G.price ? ` · ${G.price}` : ''}</div>` : ''}
+      ${G && G.status === 'CLOSED_PERMANENTLY' ? '<div class="meta hours closed">Permanently closed</div>' : G && G.status === 'CLOSED_TEMPORARILY' ? '<div class="meta hours closed">Temporarily closed</div>' : ''}
       <div class="meta">${esc([p.cat, dist].filter(Boolean).join(' · '))}${lbl ? ` · <span style="color:var(--blue-dark)">${ms('label','sm fill')} ${esc(lbl)}</span>` : ''}</div>
-      ${hs ? `<div class="meta hours ${hs.cls}">${esc(hs.text)}</div>` : ''}
-    </div></div>
+      ${hs ? `<div class="meta hours ${hs.cls}">${esc(hs.text)}</div>` : G && G.open != null ? `<div class="meta hours ${G.open ? 'open' : 'closed'}">${G.open ? 'Open now' : 'Closed now'}</div>` : ''}
+    </div>${media && media.logo ? `<img class="brandlogo" src="${esc(media.logo)}" alt="">` : ''}</div>
     <div class="actions">
       <button class="pbtn primary" id="aDir">${ms('directions','fill')}Directions</button>
       <button class="pbtn outline" id="aStart">${ms('navigation')}Start</button>
@@ -2656,16 +2814,18 @@ function drawPlace(p){
       ${web ? `<a class="pbtn outline" href="${esc(/^https?:/.test(web) ? web : 'https://' + web)}" target="_blank" rel="noopener">${ms('public')}Website</a>` : ''}
       ${menu ? `<a class="pbtn outline" href="${esc(/^https?:/.test(menu) ? menu : 'https://' + menu)}" target="_blank" rel="noopener">${ms('menu_book')}Menu</a>` : ''}
     </div>
-    ${media && media.photos.length ? `<div class="photos" id="photoStrip">${media.photos.map((ph, i) => `<button class="ph" data-ph="${i}"><img src="${esc(ph.thumb)}" alt="" loading="lazy"></button>`).join('')}</div>
-      <div class="phnote">${media.nearby ? 'Photos taken near here' : 'Photos'} · Wikimedia Commons</div>`
-      : !media ? '<div class="photos"><span class="ph skel"></span><span class="ph skel"></span><span class="ph skel"></span></div>' : ''}
+    ${allPhotos.length ? `<div class="photos" id="photoStrip">${allPhotos.map((ph, i) => `<button class="ph" data-ph="${i}"><img src="${esc(ph.thumb)}" alt="" loading="lazy"></button>`).join('')}${G && G.photoRefs.length > G.photos.length ? `<button class="ph more" id="gMore">${ms('add_photo_alternate')}<span>More photos</span></button>` : ''}</div>
+      <div class="phnote">${G && G.photos.length ? 'Photos from Google' + (media && media.photos.length ? ' and Wikimedia Commons' : '') : (media && media.nearby ? 'Photos taken near here' : 'Photos') + ' · Wikimedia Commons'}</div>`
+      : (!media || gLoading) ? '<div class="photos"><span class="ph skel"></span><span class="ph skel"></span><span class="ph skel"></span></div>' : ''}
     ${hl.length ? `<div class="hl">${hl.map(h => `<span class="hlc">${ms('check','sm')}${esc(h)}</span>`).join('')}</div>` : ''}
-    ${media && media.about ? `<div class="about"><div class="sec" style="padding:0 0 6px">About</div><p>${esc(media.about.text.length > 420 ? media.about.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : media.about.text)}</p>${media.about.url ? `<a href="${esc(media.about.url)}" target="_blank" rel="noopener">Read more on Wikipedia</a>` : ''}</div>` : ''}
+    ${about ? `<div class="about"><div class="sec" style="padding:0 0 6px">${media && media.brandAbout && !about.google ? `About ${esc(t.brand || p.name)}` : 'About'}</div><p>${esc(about.text.length > 420 ? about.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : about.text)}</p>${about.url ? `<a href="${esc(about.url)}" target="_blank" rel="noopener">Read more on Wikipedia</a>` : ''}</div>` : ''}
+    ${G && G.reviews.length ? `<div class="reviews"><div class="sec" style="padding:0 0 6px">Reviews</div>${G.reviews.map(r => `<div class="rev"><div class="rh"><b>${esc(r.who)}</b>${stars(r.stars)}<span>${esc(r.when)}</span></div><p>${esc(r.text.length > 260 ? r.text.slice(0, 250).replace(/\s+\S*$/, '') + '…' : r.text)}</p></div>`).join('')}${G.maps ? `<a href="${esc(G.maps)}" target="_blank" rel="noopener">More reviews on Google Maps</a>` : ''}</div>` : ''}
     <div class="thick"></div>
     <div class="rows">
       ${p.sub ? `<div class="rowi"><span class="ic plain">${ms('location_on')}</span><span class="tx"><div class="s wrap" style="color:var(--ink);font-size:15px">${esc(p.sub)}</div></span></div>` : ''}
       ${oh ? `<button class="rowi" id="hrsToggle"><span class="ic plain">${ms('schedule')}</span><span class="tx"><div class="s hours ${hs?.cls || ''}" style="font-size:15px">${esc(hs?.text || 'Hours')}</div></span><span class="ms" style="color:var(--muted)" id="hrsChev">expand_more</span></button><div id="hrsTable" hidden>${hoursTable(oh)}</div>`
-          : t.opening_hours ? `<div class="rowi"><span class="ic plain">${ms('schedule')}</span><span class="tx"><div class="s wrap" style="font-size:15px;color:var(--ink)">${esc(t.opening_hours)}</div></span></div>` : ''}
+          : t.opening_hours && !gH ? `<div class="rowi"><span class="ic plain">${ms('schedule')}</span><span class="tx"><div class="s wrap" style="font-size:15px;color:var(--ink)">${esc(t.opening_hours)}</div></span></div>`
+          : G && G.hours ? `<button class="rowi" id="hrsToggle"><span class="ic plain">${ms('schedule')}</span><span class="tx"><div class="s hours ${G.open == null ? '' : G.open ? 'open' : 'closed'}" style="font-size:15px">${G.open == null ? 'Hours' : G.open ? 'Open now' : 'Closed now'}</div></span><span class="ms" style="color:var(--muted)" id="hrsChev">expand_more</span></button><div id="hrsTable" hidden><div class="ghours">${G.hours.map(h => `<div>${esc(h)}</div>`).join('')}</div></div>` : ''}
       ${phone ? `<a class="rowi" href="tel:${esc(phone.split(';')[0].replace(/\s/g,''))}"><span class="ic plain">${ms('call')}</span><span class="tx"><div class="s" style="font-size:15px;color:var(--ink)">${esc(phone.split(';')[0])}</div></span></a>` : ''}
       ${web ? `<a class="rowi" href="${esc(/^https?:/.test(web) ? web : 'https://' + web)}" target="_blank" rel="noopener"><span class="ic plain">${ms('public')}</span><span class="tx"><div class="s" style="font-size:15px;color:var(--blue-dark)">${esc(web.replace(/^https?:\/\/(www\.)?/,'').replace(/\/$/,''))}</div></span></a>` : ''}
       ${email ? `<a class="rowi" href="mailto:${esc(email)}"><span class="ic plain">${ms('mail')}</span><span class="tx"><div class="s" style="font-size:15px;color:var(--blue-dark)">${esc(email)}</div></span></a>` : ''}
@@ -2674,14 +2834,16 @@ function drawPlace(p){
       ${extra.map(([ic, tx]) => `<div class="rowi"><span class="ic plain">${ms(ic)}</span><span class="tx"><div class="s wrap" style="font-size:15px;color:var(--ink)">${esc(tx)}</div></span></div>`).join('')}
       <button class="rowi" id="aCoords"><span class="ic plain">${ms('pin_drop')}</span><span class="tx"><div class="s" style="font-size:15px;color:var(--ink)">${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</div></span><span class="ms sm" style="color:var(--muted)">content_copy</span></button>
       ${!p.tags && p.osm ? '<div class="loading"><span class="spin"></span>Loading details…</div>' : ''}
-    </div>`;
+    </div>
+    ${G ? '<div class="gattr">Ratings, reviews and photos from Google</div>' : p.googleNote && S.gKey ? `<div class="gattr">${esc(p.googleNote)}</div>` : ''}`;
   $('aDir').onclick = () => go('directions', { dir:{ from:null, stops:[], to:{ ...p } } });
   $('aStart').onclick = () => quickStart(p);
   $('aSave').onclick = () => openSave(p);
   $('aShare').onclick = () => sharePlace(p);
   if ($('aFix')) $('aFix').onclick = () => go('pinfix', { place:p });
   $('aCoords').onclick = () => copyText(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);
-  if ($('photoStrip')) $('photoStrip').querySelectorAll('[data-ph]').forEach(b => b.onclick = () => openPhoto(p.media.photos, +b.dataset.ph));
+  if ($('photoStrip')) $('photoStrip').querySelectorAll('[data-ph]').forEach(b => b.onclick = () => openPhoto(p._photos, +b.dataset.ph));
+  if ($('gMore')) $('gMore').onclick = async () => { $('gMore').disabled = true; await gPhotos(p, 4); gCachePut(p, p.google); if (curData().place === p) drawPlace(p); if (p.googleNote) toast(p.googleNote); };
   if ($('hrsToggle')) $('hrsToggle').onclick = () => { const h = $('hrsTable'); h.hidden = !h.hidden; $('hrsChev').textContent = h.hidden ? 'expand_more' : 'expand_less'; };
 }
 async function copyText(t){
@@ -4528,6 +4690,7 @@ const SET_PAGES = [
   { id:'assistant', icon:'graphic_eq', title:'Assistant', sub:() => !S.claudeKey ? 'Off, needs a Claude key' : `${assistantName()} · ${titleCase(S.vibe)}${S.geminiKey && S.asstTone ? ' · tone on' : ''}` },
   { id:'handsfree', icon:'directions_car', title:'Hands-free & car', sub:() => !NATIVE ? 'Android app only' : [S.wakeOn ? `"${wakePhrase()}"` : 'Wake phrase off', S.carName ? S.carName : ''].filter(Boolean).join(' · ') },
   { id:'buddy', icon:'face', title:'Buddy avatar', sub:() => !Buddy.ready() ? 'No art yet' : !S.buddyOn ? 'Hidden' : S.buddyAlways ? 'Always on the map' : 'While navigating' },
+  { id:'google', icon:'photo_library', title:'Business photos & reviews', sub:() => S.gKey ? `Google · ${gUse().m.details} lookups this month` : 'Off, needs a Google key' },
   { id:'traffic', icon:'traffic', title:'Live traffic', sub:() => hasTT() ? 'On' : 'Off, needs a TomTom key' },
   { id:'navigation', icon:'navigation', title:'Navigation', sub:() => (S.units === 'metric' ? 'Kilometers' : 'Miles') + (S.headingUp ? ' · map turns with you' : '') },
   { id:'appearance', icon:'palette', title:'Look & app icon', sub:() => titleCase(S.skin) + ' theme · ' + titleCase(S.theme) },
@@ -4616,7 +4779,7 @@ function showSetPage(id){
 $('setBack').onclick = () => showSetPage(null);
 
 /* API keys stay locked until you tap Change, so a stray tap can't wipe them */
-const KEY_FIELDS = [['apiKey','toggleKey'], ['ttKey','toggleTT'], ['claudeKey','toggleClaude'], ['geminiKey','toggleGemini']];
+const KEY_FIELDS = [['apiKey','toggleKey'], ['ttKey','toggleTT'], ['claudeKey','toggleClaude'], ['geminiKey','toggleGemini'], ['gKey','toggleGoogle']];
 function lockKey(inp, btn){
   const i = $(inp), b = $(btn);
   i.type = 'password';
@@ -4666,7 +4829,7 @@ function openSettings(){
   syncSeg('unitsSeg', S.units); syncSeg('themeSeg', S.theme);
   syncSliders();
   status('');
-  applyPronouns(); syncHandsFree(); lockKeys(); showSetPage(null);
+  $('gKey').value = S.gKey; gStatusText(); applyPronouns(); syncHandsFree(); lockKeys(); showSetPage(null);
   openModal('settings');
 }
 function syncSeg(id, v){ document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); }
