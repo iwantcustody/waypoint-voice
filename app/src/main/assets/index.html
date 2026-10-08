@@ -678,6 +678,7 @@ a.rowi{color:inherit}
           <option value="claude-haiku-5-5">Haiku 5.5 — fastest, cheapest</option>
           <option value="claude-sonnet-5-5">Sonnet 5.5 — smarter, a bit slower and pricier</option>
         </select></div>
+      <label class="check"><input type="checkbox" id="asstFollowUp">After she answers, listen for a follow-up (no tap needed)</label>
       <label class="check"><input type="checkbox" id="asstSearch">Let her search the web (needed for events and anything current)</label>
       <div class="fld"><label for="asstNotes">Things she should know about you (optional)</label><textarea id="asstNotes" placeholder="e.g. I'm into anime and VTubers, I live in Barstow, I hate traffic"></textarea></div>
       <div class="btnrow"><button class="pbtn primary" id="testAsk" type="button"><span class="ms">graphic_eq</span>Try talking to her</button></div>
@@ -739,9 +740,9 @@ const S = {
   headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
-Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes','') });
+Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -2635,7 +2636,7 @@ Personality: ${style}
 Rules:
 - Answer in 1 to 3 short sentences, under 60 words. Spoken style only: no lists, markdown, emoji, URLs, or parentheses.
 - Lead with the answer. Round numbers. Say times like "3:30 PM".
-- Use web search for anything current or local (events, hours, news, weather, prices). If you can't find it, say so briefly.
+- Only use web search when the answer depends on current or local info (events, hours, news, weather, prices, what's open). For general knowledge, trivia, history, math, opinions or chit-chat, answer directly without searching. If a search finds nothing, say so briefly.
 - Never suggest the driver look at or type on the phone. If something needs reading, say you'll leave it on screen for when they're stopped.
 - You can't change the route yourself; if asked to go somewhere, tell them to say or search it and you'll keep them company.
 Current time: ${now.toLocaleString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
@@ -2643,13 +2644,13 @@ User location: ${place && place.city ? `near ${place.city}, ${place.region}` : '
 Trip: ${tripContext()}
 ${S.asstNotes ? 'Things the user wants you to know about them: ' + S.asstNotes : ''}`;
 }
-async function askClaude(question){
+async function askClaude(question, hooks = {}){
   const place = await placeContext();
   const tools = S.asstSearch ? [{ type:'web_search_20250305', name:'web_search', max_uses:2,
     ...(place && (place.city || place.country) ? { user_location:{ type:'approximate', ...(place.city ? { city:place.city } : {}), ...(place.region ? { region:place.region } : {}), ...(place.country ? { country:place.country } : {}), timezone:Intl.DateTimeFormat().resolvedOptions().timeZone } } : {}) }] : undefined;
   const messages = [...ASK.history.slice(-6), { role:'user', content:question }];
-  const body = { model:S.claudeModel, max_tokens:400, system:systemPrompt(place), messages, ...(tools ? { tools } : {}) };
-  const call = b => fetchTimeout('https://api.anthropic.com/v1/messages', 45000, {
+  const body = { model:S.claudeModel, max_tokens:400, stream:true, system:systemPrompt(place), messages, ...(tools ? { tools } : {}) };
+  const call = b => fetchTimeout('https://api.anthropic.com/v1/messages', 60000, {
     method:'POST',
     headers:{ 'content-type':'application/json', 'x-api-key':S.claudeKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
     body:JSON.stringify(b)
@@ -2664,15 +2665,45 @@ async function askClaude(question){
   if (r.status === 429) throw new Error("Claude's rate limit was hit. Try again in a minute.");
   if (r.status === 529 || r.status >= 500) throw new Error('Claude is busy right now. Try again shortly.');
   if (!r.ok){ let m = `Claude error ${r.status}`; try{ m = (await r.json()).error?.message || m; }catch{} throw new Error(m); }
-  const j = await r.json();
-  const blocks = j.content || [];
-  // the answer is the text after the last search result
-  let lastTool = -1; blocks.forEach((b, i) => { if (b.type === 'web_search_tool_result' || b.type === 'server_tool_use') lastTool = i; });
-  let text = blocks.slice(lastTool + 1).filter(b => b.type === 'text').map(b => b.text).join('').trim();
-  if (!text) text = blocks.filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
+
+  // Read the streamed answer so we know the moment she starts a web search
+  const blocks = [];
+  const handle = (ev) => {
+    if (ev.type === 'content_block_start'){
+      blocks[ev.index] = { ...ev.content_block, text: ev.content_block.text || '', citations: [] };
+      if (ev.content_block.type === 'server_tool_use' && hooks.onSearch) hooks.onSearch();
+    } else if (ev.type === 'content_block_delta'){
+      const b = blocks[ev.index]; if (!b) return;
+      if (ev.delta.type === 'text_delta'){ b.text += ev.delta.text; hooks.onText && hooks.onText(); }
+      else if (ev.delta.type === 'citations_delta' && ev.delta.citation) b.citations.push(ev.delta.citation);
+    } else if (ev.type === 'error'){ throw new Error(ev.error?.message || 'Claude stream error'); }
+  };
+  if (r.body && r.body.getReader){
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    for (;;){
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream:true });
+      let k;
+      while ((k = buf.indexOf('\n\n')) >= 0){
+        const chunk = buf.slice(0, k); buf = buf.slice(k + 2);
+        const data = chunk.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('');
+        if (!data) continue;
+        try{ handle(JSON.parse(data)); }catch(e){ if (/stream error|Claude/.test(e.message)) throw e; }
+      }
+    }
+  } else {
+    const txt = await r.text();
+    txt.split('\n\n').forEach(chunk => { const data = chunk.split('\n').filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join(''); if (data) try{ handle(JSON.parse(data)); }catch{} });
+  }
+  const list = blocks.filter(Boolean);
+  let lastTool = -1; list.forEach((b, i) => { if (b.type === 'web_search_tool_result' || b.type === 'server_tool_use') lastTool = i; });
+  let text = list.slice(lastTool + 1).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+  if (!text) text = list.filter(b => b.type === 'text').map(b => b.text).join(' ').trim();
   text = text.replace(/[*_#`>]/g, '').replace(/\[(\d+)\]/g, '').replace(/\s+/g, ' ').trim();
   const sources = [];
-  blocks.forEach(b => (b.citations || []).forEach(c => { if (c.url && !sources.some(x => x.url === c.url)) sources.push({ url:c.url, title:c.title || c.url }); }));
+  list.forEach(b => (b.citations || []).forEach(c => { if (c.url && !sources.some(x => x.url === c.url)) sources.push({ url:c.url, title:c.title || c.url }); }));
   ASK.history.push({ role:'user', content:question }, { role:'assistant', content:text || '...' });
   ASK.history = ASK.history.slice(-6);
   return { text, sources:sources.slice(0, 3), searched: lastTool >= 0 };
@@ -2683,42 +2714,77 @@ function askCard(state, html){
   $('askBody').innerHTML = html;
   placeFabs();
 }
-function closeAsk(){ $('askCard').hidden = true; ASK.state = 'idle'; stopListening(); placeFabs(); }
-$('askClose').onclick = () => { if (ASK.state === 'listening') stopListening(); closeAsk(); };
-function startAsk(){
+function closeAsk(){ $('askCard').hidden = true; ASK.state = 'idle'; stopListening(); placeFabs(); resumeMusic(); }
+$('askClose').onclick = () => { stopVoice(); closeAsk(); };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function waitQuiet(maxMs = 15000){ const t0 = Date.now(); while ((playing || queue.length) && Date.now() - t0 < maxMs) await sleep(120); }
+let pausedMusic = false;
+function quietMusic(){ if (NATIVE && media && media.playing){ try{ NATIVE.mediaControl('pause'); pausedMusic = true; }catch{} } }
+function resumeMusic(){ if (pausedMusic && NATIVE){ pausedMusic = false; setTimeout(() => { try{ NATIVE.mediaControl('play'); }catch{} }, 400); } }
+// followUp = true when she's listening on her own after answering (stays quiet if you say nothing)
+async function startAsk(followUp = false){
   if (!S.claudeKey){ toast(`Add a Claude API key in Settings → Assistant to talk to ${assistantName()}`, 5000); openSettings(); return; }
   if (ASK.state === 'thinking') return;
-  if (ASK.state === 'listening'){ stopListening(); return; }
+  if (ASK.state === 'listening'){ stopListening(); closeAsk(); resumeMusic(); return; }
   stopVoice();
+  quietMusic();
   ASK.state = 'listening';
-  let heard = '';
-  askCard('listening', `<div class="askq">${ms('mic','fill')}<span id="askLive">Listening…</span></div>`);
-  Buddy.mood && Buddy.mood('surprised', 300);
-  listen((t, fin) => { heard = t; const el = $('askLive'); if (el) el.textContent = t || 'Listening…'; if (fin) handleQuestion(t); },
-         err => { if (ASK.state === 'listening'){ if (heard) handleQuestion(heard); else { askCard('error', `<div class="askmsg">${esc(err || "Didn't catch that. Tap and try again.")}</div>`); ASK.state = 'idle'; setTimeout(() => { if (ASK.state === 'idle') closeAsk(); }, 3500); } } });
+  askCard('listening', `<div class="askq">${ms('mic','fill')}<span id="askLive">${followUp ? 'Listening for a follow-up…' : 'Listening…'}</span></div>`);
+  await sleep(followUp ? 150 : 350); // let the speaker and microphone settle before listening
+  if (ASK.state !== 'listening') return;
+  let tries = 0;
+  const go = () => {
+    let heard = '';
+    const t0 = Date.now();
+    listen((t, fin) => { heard = t; const el = $('askLive'); if (el) el.textContent = t || 'Listening…'; if (fin) handleQuestion(t); },
+      err => {
+        if (ASK.state !== 'listening') return;
+        if (heard){ handleQuestion(heard); return; }
+        // the mic sometimes gives up instantly right after audio played: quietly try once more
+        if (Date.now() - t0 < 1500 && tries < 1){ tries++; setTimeout(() => { if (ASK.state === 'listening') go(); }, 400); return; }
+        if (followUp){ closeAsk(); resumeMusic(); return; }
+        ASK.state = 'idle';
+        askCard('error', `<div class="askmsg">${esc(/allow|permission|support/i.test(err || '') ? err : "Didn't catch that. Tap to try again.")}</div>`);
+        resumeMusic();
+        setTimeout(() => { if (ASK.state === 'idle') closeAsk(); }, 3500);
+      });
+  };
+  go();
 }
 async function handleQuestion(q){
   if (ASK.state !== 'listening') return;
   q = (q || '').trim(); if (!q) return;
   ASK.state = 'thinking';
-  askCard('thinking', `<div class="askq">“${esc(q)}”</div><div class="askmsg"><span class="spin"></span>${esc(assistantName())} is looking it up…</div>`);
-  say(pickAny(ackLines()), true);
+  askCard('thinking', `<div class="askq">“${esc(q)}”</div><div class="askmsg"><span class="spin"></span>${esc(assistantName())} is thinking…</div>`);
+  let acked = false, gotText = false;
+  const ack = line_ => { if (acked) return; acked = true; say(line_, true); };
+  // only say "let me look it up" when she really searches; a short "mm" if it's just slow
+  const slow = setTimeout(() => { if (!gotText) ack(S.persona === 'standard' ? 'One sec.' : 'Mm... one sec.'); }, 3500);
   try{
-    const ans = await askClaude(q);
+    const ans = await askClaude(q, {
+      onSearch: () => { ack(pickAny(ackLines())); const m = $('askBody')?.querySelector('.askmsg'); if (m) m.innerHTML = `<span class="spin"></span>${esc(assistantName())} is looking it up…`; },
+      onText: () => { gotText = true; }
+    });
+    clearTimeout(slow);
     if (ASK.state !== 'thinking') return;
     ASK.state = 'answer';
     askCard('answer', `<div class="askq">“${esc(q)}”</div><div class="askans">${esc(ans.text || "I couldn't find anything on that.")}</div>
       ${ans.sources.length ? `<div class="asksrc">${ans.sources.map(s_ => `<a href="${esc(s_.url)}" target="_blank" rel="noopener">${esc(s_.title.length > 40 ? s_.title.slice(0, 38) + '…' : s_.title)}</a>`).join('')}</div>` : ''}
       <div class="btnrow"><button class="pbtn outline" id="askAgain">${ms('mic')}Ask another</button></div>`);
     $('askAgain').onclick = () => { ASK.state = 'idle'; startAsk(); };
-    // wait for the ack line to finish, then answer
-    const wait = Date.now(); while (playing && Date.now() - wait < 4000) await new Promise(r => setTimeout(r, 100));
-    say(ans.text || "Hm... I couldn't find anything on that.", true);
-    setTimeout(() => { if (ASK.state === 'answer' && !playing) closeAsk(); }, 20000 + (ans.text || '').length * 60);
+    if (acked) await waitQuiet(5000);
+    say(ans.text || "Hm... I couldn't find anything on that.", !acked);
+    await sleep(300);
+    await waitQuiet(30000);
+    if (ASK.state !== 'answer') return;
+    if (S.asstFollowUp){ ASK.state = 'idle'; startAsk(true); }
+    else { resumeMusic(); setTimeout(() => { if (ASK.state === 'answer') closeAsk(); }, 15000); }
   }catch(e){
+    clearTimeout(slow);
     ASK.state = 'idle';
     askCard('error', `<div class="askmsg">${esc(e.name === 'AbortError' ? 'That took too long. Check your signal and try again.' : e.message || 'Something went wrong.')}</div>`);
     say(e.name === 'AbortError' || /fetch/i.test(e.message) ? "Hm... I can't reach the internet right now." : "Sorry... something went wrong.", true, 'surprised');
+    resumeMusic();
     setTimeout(() => { if (ASK.state === 'idle') closeAsk(); }, 6000);
   }
 }
@@ -3468,7 +3534,7 @@ map.on('contextmenu', e => {
 function openSettings(){
   loadElUsage();
   $('ttKey').value = S.ttKey; $('mpg').value = S.mpg; $('mpgV').textContent = S.mpg; $('autoFaster').checked = S.autoFaster; $('ttStatus').textContent = hasTT() ? 'Live traffic is on.' : '';
-  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstNotes').value = S.asstNotes;
+  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstFollowUp').checked = S.asstFollowUp; $('asstNotes').value = S.asstNotes;
   offlineUsage().then(u => { const t = LS.get('offlineTrip', null); $('offUsage').textContent = [t ? `Saved route: ${t.to.name}` : 'No saved routes yet. Use Save offline on a route.', u].filter(Boolean).join(' · '); });
   syncSeg('chatterSeg', S.chatter); $('setFacts').checked = S.funFacts; $('setSpeedWarn').checked = S.speedWarn;
   renderBuddySlots();
@@ -3521,6 +3587,7 @@ $('claudeKey').addEventListener('change', () => { S.claudeKey = $('claudeKey').v
 $('asstName').addEventListener('input', () => { S.asstName = $('asstName').value; save(); });
 $('claudeModel').onchange = () => { S.claudeModel = $('claudeModel').value; save(); };
 $('asstSearch').onchange = () => { S.asstSearch = $('asstSearch').checked; save(); };
+$('asstFollowUp').onchange = () => { S.asstFollowUp = $('asstFollowUp').checked; save(); };
 $('asstNotes').addEventListener('change', () => { S.asstNotes = $('asstNotes').value.trim(); save(); });
 $('testAsk').onclick = () => { S.claudeKey = $('claudeKey').value.trim(); save(); closeModal('settings'); readVoiceFields(); Buddy.testing = true; Buddy.refresh(); startAsk(); setTimeout(() => { Buddy.testing = false; Buddy.refresh(); }, 60000); };
 $('toggleKey').onclick = () => { const k = $('apiKey'); k.type = k.type === 'password' ? 'text' : 'password'; $('toggleKey').textContent = k.type === 'password' ? 'Show' : 'Hide'; };
