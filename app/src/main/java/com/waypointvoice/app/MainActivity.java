@@ -31,6 +31,8 @@ public class MainActivity extends Activity {
     static final int REQ_MIC = 2;
     static final int REQ_FILE = 3;
     static final int REQ_WEB_MIC = 4;
+    static final int REQ_BT = 5;
+    static final int REQ_ENGINE_MIC = 6;
     PermissionRequest pendingMic;
     ValueCallback<Uri[]> fileCallback;
 
@@ -138,6 +140,7 @@ public class MainActivity extends Activity {
         else web.loadUrl(remote);
 
         askPermissions();
+        handleCarIntent(getIntent());
     }
 
     WebResourceResponse pageWithFallback(String url) {
@@ -188,6 +191,9 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_PERMS) bridge.onLocationPermissionResult();
         if (requestCode == REQ_MIC) bridge.onMicPermissionResult(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
+        boolean granted = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        if (requestCode == REQ_BT) bridge.onBtPermissionResult(granted);
+        if (requestCode == REQ_ENGINE_MIC) bridge.onEngineMicResult(granted);
         if (requestCode == REQ_WEB_MIC && pendingMic != null) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) pendingMic.grant(new String[]{ PermissionRequest.RESOURCE_AUDIO_CAPTURE });
             else pendingMic.deny();
@@ -208,7 +214,29 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        bridge.onResume();
         bridge.js("window.__nativeResume && window.__nativeResume()");
+    }
+
+    @Override
+    protected void onPause() {
+        bridge.onPause();
+        super.onPause();
+    }
+
+    // Opened because your car connected (see CarReceiver)
+    void handleCarIntent(Intent i) {
+        if (i == null || i.getStringExtra("fromCar") == null) return;
+        final String name = i.getStringExtra("fromCar");
+        i.removeExtra("fromCar");
+        web.postDelayed(() -> bridge.js("window.__nativeCarConnected && window.__nativeCarConnected(" + NativeBridge.q(name) + ")"), 2500);
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleCarIntent(intent);
     }
 
     @Override

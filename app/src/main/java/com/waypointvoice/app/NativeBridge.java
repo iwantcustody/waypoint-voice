@@ -24,6 +24,7 @@ import android.media.MediaPlayer;
 import android.media.session.MediaController;
 import android.media.session.MediaSessionManager;
 import android.media.session.PlaybackState;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -61,6 +62,101 @@ public class NativeBridge {
         web = w;
         ctx = a.getApplicationContext();
         am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
+        voice = new VoiceEngine(this, ctx);
+    }
+
+    /* ======================= Hands-free: wake phrase, phone mic, aux, car ======================= */
+    final VoiceEngine voice;
+    Runnable afterMic;
+
+    /** Runs r once the microphone permission is granted (asks if needed). */
+    void withMic(Runnable r) {
+        if (has(Manifest.permission.RECORD_AUDIO)) { r.run(); return; }
+        afterMic = r;
+        main.post(() -> act.requestPermissions(new String[]{ Manifest.permission.RECORD_AUDIO }, MainActivity.REQ_ENGINE_MIC));
+    }
+
+    void onEngineMicResult(boolean ok) {
+        Runnable r = afterMic;
+        afterMic = null;
+        if (ok && r != null) r.run();
+        else if (!ok) js("window.__nativeWakeError && window.__nativeWakeError('Microphone permission is needed')");
+    }
+
+    @JavascriptInterface
+    public String getAudioRoute() { return voice.routeJson(); }
+
+    @JavascriptInterface
+    public String speechStatus() { return voice.status(); }
+
+    @JavascriptInterface
+    public void downloadSpeech() { voice.ensureModel(); }
+
+    @JavascriptInterface
+    public void deleteSpeech() { new Thread(voice::deleteModel).start(); }
+
+    @JavascriptInterface
+    public void startWake(boolean phoneMic) { withMic(() -> voice.startWake(phoneMic)); }
+
+    @JavascriptInterface
+    public void stopWake() { voice.stopWake(); }
+
+    @JavascriptInterface
+    public void recordClip(boolean phoneMic, boolean transcribe) { withMic(() -> voice.recordClip(phoneMic, transcribe)); }
+
+    @JavascriptInterface
+    public void cancelClip() { voice.cancelClip(); }
+
+    void onPause() { voice.onPause(NavService.running && NavService.withMic); }
+
+    void onResume() { voice.onResume(); }
+
+    // --- car Bluetooth ---
+    @JavascriptInterface
+    public String listBtDevices() {
+        if (Build.VERSION.SDK_INT >= 31 && !has(Manifest.permission.BLUETOOTH_CONNECT)) {
+            main.post(() -> act.requestPermissions(new String[]{ Manifest.permission.BLUETOOTH_CONNECT }, MainActivity.REQ_BT));
+            return "need-permission";
+        }
+        org.json.JSONArray arr = new org.json.JSONArray();
+        try {
+            android.bluetooth.BluetoothManager bm = ctx.getSystemService(android.bluetooth.BluetoothManager.class);
+            android.bluetooth.BluetoothAdapter ad = bm == null ? null : bm.getAdapter();
+            if (ad != null) {
+                for (android.bluetooth.BluetoothDevice d : ad.getBondedDevices()) {
+                    JSONObject o = new JSONObject();
+                    o.put("name", d.getName() == null ? d.getAddress() : d.getName());
+                    o.put("addr", d.getAddress());
+                    arr.put(o);
+                }
+            }
+        } catch (SecurityException e) {
+            return "need-permission";
+        } catch (Exception ignored) { }
+        return arr.toString();
+    }
+
+    void onBtPermissionResult(boolean ok) {
+        js("window.__nativeBtReady && window.__nativeBtReady(" + ok + ")");
+    }
+
+    @JavascriptInterface
+    public void setCar(String addr, String name, boolean autoOpen) {
+        CarReceiver.prefs(ctx).edit().putString("addr", addr == null ? "" : addr).putString("name", name == null ? "" : name)
+                .putBoolean("autoOpen", autoOpen).apply();
+    }
+
+    @JavascriptInterface
+    public boolean canDrawOverlays() { return Settings.canDrawOverlays(ctx); }
+
+    @JavascriptInterface
+    public void openOverlaySettings() {
+        main.post(() -> {
+            try {
+                Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + ctx.getPackageName()));
+                act.startActivity(i);
+            } catch (Exception ignored) { }
+        });
     }
 
     void js(String code) {
@@ -447,6 +543,7 @@ public class NativeBridge {
 
     @JavascriptInterface
     public void startVoice() {
+        voice.stopWake();
         main.post(() -> {
             if (!has(Manifest.permission.RECORD_AUDIO)) { act.askMic(); return; }
             beginVoice();
@@ -575,6 +672,7 @@ public class NativeBridge {
     /* ======================= Cleanup ======================= */
     void destroy() {
         try { if (lm != null) { lm.removeUpdates(gpsListener); lm.removeUpdates(netListener); } } catch (Exception ignored) { }
+        voice.destroy();
         releasePlayer();
         abandonFocus();
         if (tts != null) { try { tts.shutdown(); } catch (Exception ignored) { } }

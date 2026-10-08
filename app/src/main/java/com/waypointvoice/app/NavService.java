@@ -20,6 +20,7 @@ public class NavService extends Service {
     static final int NOTE_ID = 7;
     static String title = "Navigating";
     static volatile boolean running = false;
+    static volatile boolean withMic = false;
 
     @Override
     public IBinder onBind(Intent intent) { return null; }
@@ -36,7 +37,16 @@ public class NavService extends Service {
         String text = intent != null && intent.getStringExtra("text") != null ? intent.getStringExtra("text") : "";
         try {
             Notification n = build(this, text);
-            if (Build.VERSION.SDK_INT >= 29) startForeground(NOTE_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            withMic = false;
+            if (Build.VERSION.SDK_INT >= 30 && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                // also keeps the wake phrase listening while you use other apps or the screen is off
+                try {
+                    startForeground(NOTE_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE);
+                    withMic = true;
+                } catch (Exception e) {
+                    startForeground(NOTE_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+                }
+            } else if (Build.VERSION.SDK_INT >= 29) startForeground(NOTE_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
             else startForeground(NOTE_ID, n);
         } catch (Exception e) {
             // e.g. location permission was turned off: navigation still works with the screen on
@@ -48,6 +58,7 @@ public class NavService extends Service {
     @Override
     public void onDestroy() {
         running = false;
+        withMic = false;
         super.onDestroy();
     }
 
