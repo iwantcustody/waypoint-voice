@@ -1,0 +1,69 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Each GitHub build gets a higher version number, so new builds install over old ones and keep your data.
+def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+// The app loads its screens from your GitHub Pages site, so website updates reach the app without a rebuild.
+// Worked out automatically from your repo, e.g. https://yourname.github.io/waypoint-voice/
+def repo = System.getenv("GITHUB_REPOSITORY") ?: ""
+def webUrl = ""
+if (repo.contains("/")) {
+    def parts = repo.split("/")
+    def owner = parts[0].toLowerCase()
+    def name = parts[1]
+    webUrl = name.equalsIgnoreCase(owner + ".github.io") ? "https://${owner}.github.io/" : "https://${owner}.github.io/${name}/"
+}
+
+android {
+    namespace 'com.waypointvoice.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.waypointvoice.app"
+        minSdk 26
+        targetSdk 34
+        versionCode runNumber
+        versionName "1.0.${runNumber}"
+        buildConfigField "String", "WEB_URL", "\"${webUrl}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // The same signing key every build, so updates install without uninstalling first.
+    signingConfigs {
+        release {
+            storeFile file("waypoint.keystore")
+            storePassword "waypoint"
+            keyAlias "waypoint"
+            keyPassword "waypoint"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}
