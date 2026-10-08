@@ -699,7 +699,9 @@ a.rowi{color:inherit}
           <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite — quickest</option>
         </select></div>
       <label class="check"><input type="checkbox" id="asstTone">Use tone detection when a Gemini key is set</label>
-      <label class="check"><input type="checkbox" id="asstMirror">Match my vibe (she swears if you do, stays clean if you don't)</label>
+      <div class="fld"><label>Language</label>
+        <div class="seg" id="vibeSeg"><button type="button" data-v="clean">Clean</button><button type="button" data-v="casual">Casual</button><button type="button" data-v="unhinged">Unhinged</button></div>
+        <div class="small" id="vibeNote"></div></div>
       <label class="check"><input type="checkbox" id="asstFollowUp">After she answers, listen for a follow-up (no tap needed)</label>
       <label class="check"><input type="checkbox" id="asstSearch">Let her search the web (needed for events and anything current)</label>
       <div class="fld"><label for="asstNotes">Things she should know about you (optional)</label><textarea id="asstNotes" placeholder="e.g. I'm into anime and VTubers, I live in Barstow, I hate traffic"></textarea></div>
@@ -774,9 +776,9 @@ const S = {
   headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
-Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true) });
+Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -2698,7 +2700,7 @@ function systemPrompt(place){
   const now = new Date();
   return `You are ${name}, a voice navigation buddy riding along in the user's car. Everything you write is read aloud by text-to-speech while they drive.
 Personality: ${style}
-${S.asstMirror ? `Match the user's vibe: mirror their energy, slang and how crude they are. If they swear or talk rough, swear casually back and banter like a friend would (playful, never genuinely mean to them, no slurs or hateful stuff). If they talk clean, stay clean. Your chill personality stays underneath either way.` : 'Keep your language clean (no swearing), whatever the user says.'}
+${VIBE_PROMPT[S.vibe] || VIBE_PROMPT.casual}
 ${S.geminiKey && S.asstTone ? `Voice analysis: the user's message may start with a note in square brackets, like [whispering] or [sounds sarcastic, laughing], describing HOW they said it. React naturally: answer softly and briefly if they whisper, play along if they're sarcastic, match excitement or annoyance. Never mention or repeat the note itself.` : ''}
 ${S.model === 'eleven_v3' ? 'Your voice can perform one short audio tag at the start of a sentence, like [whispers], [laughs], [sighs] or [sarcastically]. Use one only when it fits the moment, at most once per reply.' : 'Never use square-bracket tags.'}
 Rules:
@@ -2811,6 +2813,11 @@ async function askClaude(question, hooks = {}, delivery = ''){
 }
 
 /* ---------- trip control tools she can use ---------- */
+const VIBE_PROMPT = {
+  clean: 'Keep your language clean (no swearing), whatever the user says.',
+  casual: "Match the user's vibe: mirror their energy, slang and how crude they are. If they swear or talk rough, swear casually back and banter like a friend would (playful, never genuinely mean to them). If they talk clean, stay clean. Your chill personality stays underneath either way.",
+  unhinged: "Unfiltered mode: swear freely and often, even if the user doesn't. Roast the user affectionately, roast other drivers and traffic when they complain, lean into dark and crude humor, and don't soften things. Still keep answers short and useful, keep your chill deadpan delivery, and never use slurs or attack anyone's race, religion, gender, sexuality or disability."
+};
 const TRIP_TOOLS = [
   { name:'find_nearby', description:'Look up places near the user (or ahead on the route while navigating) and get a numbered list with distance and open hours. Use for "find something to eat", "any coffee around here?", "what gas stations are near me", "is there a Target nearby". Also shows them on the map. Read back the best 2 or 3 briefly.',
     input_schema:{ type:'object', properties:{ what:{ type:'string', description:'Kind of place or name, e.g. "food", "tacos", "coffee", "gas", "Target"' }, along_route:{ type:'boolean', description:'Only places ahead on the current route (default true while navigating)' } }, required:['what'] } },
@@ -3908,7 +3915,7 @@ map.on('contextmenu', e => {
 function openSettings(){
   loadElUsage();
   $('ttKey').value = S.ttKey; $('mpg').value = S.mpg; $('mpgV').textContent = S.mpg; $('autoFaster').checked = S.autoFaster; $('ttStatus').textContent = hasTT() ? 'Live traffic is on.' : '';
-  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstFollowUp').checked = S.asstFollowUp; $('asstMirror').checked = S.asstMirror; $('geminiKey').value = S.geminiKey; $('geminiModel').value = S.geminiModel; $('asstTone').checked = S.asstTone; $('asstNotes').value = S.asstNotes;
+  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstFollowUp').checked = S.asstFollowUp; syncVibe(); $('geminiKey').value = S.geminiKey; $('geminiModel').value = S.geminiModel; $('asstTone').checked = S.asstTone; $('asstNotes').value = S.asstNotes;
   offlineUsage().then(u => { const t = LS.get('offlineTrip', null); $('offUsage').textContent = [t ? `Saved route: ${t.to.name}` : 'No saved routes yet. Use Save offline on a route.', u].filter(Boolean).join(' · '); });
   syncSeg('chatterSeg', S.chatter); $('setFacts').checked = S.funFacts; $('setSpeedWarn').checked = S.speedWarn;
   renderBuddySlots();
@@ -3962,7 +3969,9 @@ $('asstName').addEventListener('input', () => { S.asstName = $('asstName').value
 $('claudeModel').onchange = () => { S.claudeModel = $('claudeModel').value; save(); };
 $('asstSearch').onchange = () => { S.asstSearch = $('asstSearch').checked; save(); };
 $('asstFollowUp').onchange = () => { S.asstFollowUp = $('asstFollowUp').checked; save(); };
-$('asstMirror').onchange = () => { S.asstMirror = $('asstMirror').checked; save(); };
+const VIBE_NOTES = { clean:'No swearing, ever.', casual:'Swears back if you do, stays clean if you don\'t.', unhinged:'Swears freely, roasts you and other drivers, dark humor. No slurs.' };
+function syncVibe(){ syncSeg('vibeSeg', S.vibe); $('vibeNote').textContent = VIBE_NOTES[S.vibe] || ''; }
+document.querySelectorAll('#vibeSeg button').forEach(b => b.onclick = () => { S.vibe = b.dataset.v; save(); syncVibe(); });
 $('geminiKey').addEventListener('change', () => { S.geminiKey = $('geminiKey').value.trim(); ASK.toneBroken = false; save(); });
 $('geminiModel').onchange = () => { S.geminiModel = $('geminiModel').value; save(); };
 $('asstTone').onchange = () => { S.asstTone = $('asstTone').checked; ASK.toneBroken = false; save(); };
