@@ -17,7 +17,7 @@ It's a personal app for you and a few friends. It isn't on the Play Store; you i
 - Place pages with hours, phone, website, photos and a Wikipedia summary. Chains like McDonald's show their logo
 - With a Google key: real photos, star ratings, reviews, price level and up-to-date hours, kept inside Google's free monthly allowance
 - Businesses and points of interest show up as you zoom in
-- Saved places with Home, Work and your own labels ("Alex's House"), plus lists. You can nudge a pin onto the exact spot
+- Saved places with Home, Work and your own labels ("Alex's House"), plus lists. You can nudge a pin onto the exact spot. Import your saved places, lists and labels from Google Maps (via Google Takeout)
 
 ### Directions & navigation
 - Driving, walking and cycling, with stops along the way
