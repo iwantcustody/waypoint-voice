@@ -940,6 +940,7 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
       <div class="small">Bring in your saved places, lists and labeled places (Home, Work and the rest) from Google. Get the file at <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a>: tap <b>Deselect all</b>, tick <b>Maps (your places)</b> and <b>Saved</b>, then <b>Next step → Create export</b>. Google emails you a download link; pick that .zip here.</div>
       <div class="btnrow"><label class="pbtn primary" for="gmFile"><span class="ms">upload_file</span>Pick Takeout file</label><input type="file" id="gmFile" accept=".zip,.json,.csv,application/zip,application/x-zip-compressed,application/json,text/csv,text/comma-separated-values" hidden></div>
       <div class="status" id="gmStatus"></div>
+      <div class="btnrow"><button class="pbtn outline danger" id="gmUndo" type="button">Remove imported list places</button></div>
       <h3>History &amp; saved audio</h3>
       <div class="btnrow"><button class="pbtn outline danger" id="clearHistory" type="button">Clear search history</button><button class="pbtn outline danger" id="clearCache" type="button">Clear saved voice audio</button></div>
       <div class="small">Saved places, labels and history live only in this browser on this phone.</div>
@@ -3044,6 +3045,7 @@ function drawPlace(p){
     ${allPhotos.length ? `<div class="photos" id="photoStrip">${allPhotos.map((ph, i) => `<button class="ph" data-ph="${i}"><img src="${esc(ph.thumb)}" alt="" loading="lazy"></button>`).join('')}${G && G.photoRefs.length > G.photos.length ? `<button class="ph more" id="gMore">${ms('add_photo_alternate')}<span>More photos</span></button>` : ''}</div>
       <div class="phnote">${G && G.photos.length ? 'Photos from Google' + (media && media.photos.length ? ' and Wikimedia Commons' : '') : (media && media.nearby ? 'Photos taken near here' : 'Photos') + ' · Wikimedia Commons'}</div>`
       : (!media || gLoading) ? '<div class="photos"><span class="ph skel"></span><span class="ph skel"></span><span class="ph skel"></span></div>' : ''}
+    ${p.approx && isSaved(p) ? `<button class="gnote link" id="approxFix">${ms('edit_location_alt','sm')}Imported from Google Maps by name, so this pin may be off. Tap to fix it</button>` : ''}
     ${!G && S.gKey && p.googleNote ? `<div class="gnote">${ms('info','sm')}Google photos & reviews: ${esc(p.googleNote)}</div>` : ''}
     ${!S.gKey && googleWanted({ ...p, name:p.name }) === false && (p.cat || t.amenity || t.shop) ? `<button class="gnote link" id="gHint">${ms('photo_library','sm')}Get photos, ratings and reviews for places like this</button>` : ''}
     ${hl.length ? `<div class="hl">${hl.map(h => `<span class="hlc">${ms('check','sm')}${esc(h)}</span>`).join('')}</div>` : ''}
@@ -3072,6 +3074,7 @@ function drawPlace(p){
   if ($('aFix')) $('aFix').onclick = () => go('pinfix', { place:p });
   $('aCoords').onclick = () => copyText(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);
   if ($('photoStrip')) $('photoStrip').querySelectorAll('[data-ph]').forEach(b => b.onclick = () => openPhoto(p._photos, +b.dataset.ph));
+  if ($('approxFix')) $('approxFix').onclick = () => go('pinfix', { place:p });
   if ($('gHint')) $('gHint').onclick = () => { openSettings(); showSetPage('google'); };
   if ($('gMore')) $('gMore').onclick = async () => { $('gMore').disabled = true; await gPhotos(p, 4); gCachePut(p, p.google); if (curData().place === p) drawPlace(p); if (p.googleNote) toast(p.googleNote); };
   if ($('hrsToggle')) $('hrsToggle').onclick = () => { const h = $('hrsTable'); h.hidden = !h.hidden; $('hrsChev').textContent = h.hidden ? 'expand_more' : 'expand_less'; };
@@ -3107,7 +3110,7 @@ function viewPinFix(d){
 }
 // move every saved copy of this place (Home, Work, labels, lists, recents)
 function relocateSaved(p, lat, lng){
-  const fix = x => (x && samePlace(x, p)) ? { ...x, lat, lng } : x;
+  const fix = x => (x && samePlace(x, p)) ? { ...x, lat, lng, ...(x.approx ? { approx:false } : {}) } : x;
   saved.home = fix(saved.home); saved.work = fix(saved.work);
   saved.labels = saved.labels.map(l => ({ ...l, place:fix(l.place) }));
   for (const k in saved.lists) saved.lists[k] = saved.lists[k].map(fix);
@@ -5275,12 +5278,31 @@ function parseTakeoutFile(name, text){
   }
   return out;
 }
-async function locateImported(it){
+// Google's export leaves out the location for list entries, so look each one up by name near home.
+const normName = x => String(x || '').toLowerCase().replace(/&/g, 'and').replace(/['’`]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+function namesMatch(a, b){
+  const x = normName(a), y = normName(b); if (!x || !y) return false;
+  if (x === y || (x.length >= 4 && y.includes(x)) || (y.length >= 4 && x.includes(y))) return true;
+  return sim(x, y) >= 0.72;
+}
+async function locateImported(it, center){
   if (it.lat != null) return true;
-  const q = [it.name, it.sub].filter(Boolean).join(', '); if (!q) return false;
+  const name = (it.name || '').trim(); if (!name) return false;
+  // 1) Google, when you've added a key: same database the place came from, so it's the most accurate
+  if (S.gKey && (gUse().m.tsearch || 0) < 4000){
+    try{
+      const j = await gFetch('https://places.googleapis.com/v1/places:searchText', { method:'POST', headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ textQuery:name, locationBias:{ circle:{ center:{ latitude:center[0], longitude:center[1] }, radius:50000 } } }) },
+        'places.displayName,places.location,places.formattedAddress');
+      const u = gUse(); u.m.tsearch = (u.m.tsearch || 0) + 1; LS.set('gUse', u);
+      const hit = (j.places || []).find(x => namesMatch(name, x.displayName?.text)) || null;
+      if (hit && hit.location){ it.lat = hit.location.latitude; it.lng = hit.location.longitude; it.sub = hit.formattedAddress || it.sub; it.via = 'google'; return true; }
+    }catch(e){ it.gErr = e.message; }
+  }
+  // 2) free search: only accept a business whose name really matches (never a random street address)
   try{
-    const hits = rankLocal(await photon(q, 3));
-    if (hits[0] && hits[0].dist < 400000){ it.lat = hits[0].lat; it.lng = hits[0].lng; it.sub = it.sub || hits[0].sub; it.approx = true; return true; }
+    const hits = rankLocal(await photon(name, 6)).filter(h => !h._addr && h.cat !== 'Address' && namesMatch(name, h.name) && h.dist < 250000);
+    if (hits[0]){ it.lat = hits[0].lat; it.lng = hits[0].lng; it.sub = it.sub || hits[0].sub; it.approx = true; return true; }
   }catch{}
   return false;
 }
@@ -5298,11 +5320,20 @@ async function importTakeout(files){
   }
   const items = docs.flatMap(([n, t]) => parseTakeoutFile(n, t));
   if (!items.length){ status("Didn't find any saved places in that file. Make sure \"Maps (your places)\" and \"Saved\" were ticked in Takeout."); return; }
-  let added = 0, missed = 0, dup = 0, done = 0;
+  let added = 0, missed = 0, dup = 0, done = 0, fixed = 0;
+  const missedNames = [];
+  const home = items.find(x => x.kind === 'label' && /^home$/i.test(x.label || '') && x.lat != null);
+  const center = home ? [home.lat, home.lng] : saved.home ? [saved.home.lat, saved.home.lng] : here();
   for (const it of items){
     status(`Importing ${++done} of ${items.length}…`);
-    if (!(await locateImported(it))){ missed++; continue; }
-    const place = { id:`imp${it.lat.toFixed(5)},${it.lng.toFixed(5)}`, name:it.name || it.label || 'Saved place', sub:it.sub || '', lat:it.lat, lng:it.lng, cat:'', icon:'location_on' };
+    if (!(await locateImported(it, center))){ missed++; missedNames.push(it.name); continue; }
+    const place = { id:`imp${it.lat.toFixed(5)},${it.lng.toFixed(5)}`, name:it.name || it.label || 'Saved place', sub:it.sub || '', lat:it.lat, lng:it.lng, cat:'', icon:'location_on', ...(it.approx ? { approx:true } : {}) };
+    // a re-import moves pins that an earlier import put in the wrong spot
+    if (it.kind === 'list'){
+      const arr = saved.lists[it.list] || [];
+      const old = arr.find(x => String(x.id || '').startsWith('imp') && normName(x.name) === normName(place.name) && hav([x.lat, x.lng], [place.lat, place.lng]) >= 150);
+      if (old && old.approx !== false){ Object.assign(old, { lat:place.lat, lng:place.lng, sub:place.sub, id:place.id }); if (!place.approx) delete old.approx; fixed++; continue; }
+    }
     if (it.kind === 'label'){
       const lb = (it.label || '').trim(), low = lb.toLowerCase();
       if (low === 'home'){ if (saved.home && samePlace(saved.home, place)) dup++; else { saved.home = place; added++; } }
@@ -5317,10 +5348,16 @@ async function importTakeout(files){
     if (it.approx) await sleep(250); // go easy on the free search service
   }
   persistSaved();
-  status(`Imported ${added} place${added === 1 ? '' : 's'}${dup ? `, ${dup} already saved` : ''}${missed ? `, ${missed} couldn't be found` : ''}. Find them in the Saved tab.`);
+  const gErr = items.find(x => x.gErr)?.gErr;
+  status(`Imported ${added} place${added === 1 ? '' : 's'}${fixed ? `, moved ${fixed} to the right spot` : ''}${dup ? `, ${dup} already saved` : ''}${missed ? `, skipped ${missed} it couldn't find for sure (${missedNames.slice(0, 4).join(', ')}${missed > 4 ? '…' : ''})` : ''}.${gErr ? ` Google lookups didn't work: ${gErr}.` : !S.gKey && missed ? ' Adding a Google key (Business photos & reviews) finds these much better; then import again.' : ''} Find them in the Saved tab.`);
   toast(`Imported ${added} places from Google`);
   if (curView() === 'saved' || curView() === 'explore') render();
 }
+confirmTap($('gmUndo'), () => {
+  let n = 0;
+  for (const k in saved.lists){ const before = saved.lists[k].length; saved.lists[k] = saved.lists[k].filter(x => !String(x.id || '').startsWith('imp')); n += before - saved.lists[k].length; }
+  persistSaved(); $('gmStatus').textContent = `Removed ${n} imported place${n === 1 ? '' : 's'} from your lists. Home, Work and labels were kept.`; if (curView() === 'saved') render();
+});
 $('gmFile').addEventListener('change', async () => {
   const files = [...($('gmFile').files || [])]; $('gmFile').value = '';
   if (!files.length){ $('gmStatus').textContent = "The file didn't come through. Try picking it from the Downloads folder, or unzip it and pick Saved Places.json."; return; }
