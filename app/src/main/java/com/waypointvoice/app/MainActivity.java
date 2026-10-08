@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -29,6 +30,8 @@ public class MainActivity extends Activity {
     static final int REQ_PERMS = 1;
     static final int REQ_MIC = 2;
     static final int REQ_FILE = 3;
+    static final int REQ_WEB_MIC = 4;
+    PermissionRequest pendingMic;
     ValueCallback<Uri[]> fileCallback;
 
     WebView web;
@@ -96,6 +99,23 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
+            // Lets the assistant record your voice (for tone detection)
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                runOnUiThread(() -> {
+                    boolean audio = false;
+                    for (String r : request.getResources()) if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) audio = true;
+                    if (!audio) { request.deny(); return; }
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(new String[]{ PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+                    } else {
+                        if (pendingMic != null) pendingMic.deny();
+                        pendingMic = request;
+                        requestPermissions(new String[]{ Manifest.permission.RECORD_AUDIO }, REQ_WEB_MIC);
+                    }
+                });
+            }
+
             // Lets "Change photo" open your gallery
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
@@ -168,6 +188,11 @@ public class MainActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQ_PERMS) bridge.onLocationPermissionResult();
         if (requestCode == REQ_MIC) bridge.onMicPermissionResult(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED);
+        if (requestCode == REQ_WEB_MIC && pendingMic != null) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) pendingMic.grant(new String[]{ PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+            else pendingMic.deny();
+            pendingMic = null;
+        }
     }
 
     @Override
