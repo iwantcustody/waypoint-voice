@@ -14,7 +14,8 @@ It's a personal app for you and a few friends. It isn't on the Play Store; you i
 - Clean, Google-style map (with a TomTom key), plus Satellite, Terrain and Detailed views
 - Search with instant suggestions: your labeled places first (most used on top), then saved places and recent searches
 - Category chips (Restaurants, Gas, Coffee…) that widen the search in remote areas until they find something
-- Place pages with hours, phone, website, photos and a Wikipedia summary
+- Place pages with hours, phone, website, photos and a Wikipedia summary. Chains like McDonald's show their logo
+- With a Google key: real photos, star ratings, reviews, price level and up-to-date hours, kept inside Google's free monthly allowance
 - Businesses and points of interest show up as you zoom in
 - Saved places with Home, Work and your own labels ("Alex's House"), plus lists. You can nudge a pin onto the exact spot
 
@@ -68,6 +69,7 @@ It's a personal app for you and a few friends. It isn't on the Play Store; you i
 | **TomTom** API key *(optional)* | Clean map, live traffic, faster-route alerts, road alerts | Free tier, no credit card |
 | **Claude** API key *(optional)* | Talking to your buddy | Pay-as-you-go, roughly 1–2¢ per question when it searches the web |
 | **Gemini** API key *(optional)* | Tone detection | Free tier |
+| **Google Places** API key *(optional)* | Business photos, ratings and reviews | Free monthly allowance (needs a card on file with Google Cloud). The app stops itself before going over |
 
 Without any keys the app still works as a map with the phone's built-in voice. All keys are saved only on your phone and are never put in this code.
 
@@ -97,6 +99,7 @@ Without any keys the app still works as a map with the phone's built-in voice. A
 - **Live traffic:** sign up free at developer.tomtom.com, copy the key → **Live traffic** → paste.
 - **Assistant:** console.anthropic.com → add a few dollars under Billing → API keys → Create key → **Assistant** → paste. Give your buddy a name.
 - **Tone detection:** get a key at aistudio.google.com/apikey → **Assistant → Tone detection** → paste.
+- **Business photos & reviews:** follow the steps under **Business photos & reviews** (Google Cloud → enable Places API (New) → create a key) → paste.
 - **Hands-free:** **Hands-free & car** → turn on the wake phrase (downloads about 40 MB once), and pick your car's Bluetooth.
 
 ### 5. Try a drive
