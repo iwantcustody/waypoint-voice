@@ -188,6 +188,8 @@ label.pbtn{cursor:pointer}
 .rev .rh span{color:var(--muted);font-size:12px}
 .rev p{margin:6px 0 0;font-size:14px;line-height:1.45}
 .ghours{padding:0 16px 8px 72px;font-size:14px;line-height:1.7}
+.gnote{display:flex;align-items:center;gap:8px;margin:4px 16px 8px;padding:8px 12px;border-radius:12px;background:var(--surface2);color:var(--muted);font-size:13px;text-align:left;width:calc(100% - 32px)}
+.gnote.link{color:var(--blue-dark);font-weight:500}
 .gattr{font-size:12px;color:var(--muted);padding:8px 16px 16px}
 .phnote{font-size:12px;color:var(--muted);padding:2px 16px 8px}
 .hl{display:flex;flex-wrap:wrap;gap:6px;padding:4px 16px 10px}
@@ -927,6 +929,13 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
       <h3>Offline maps</h3>
       <div class="small" id="offUsage">Save a route from its directions screen with Save offline.</div>
       <div class="btnrow"><button class="pbtn outline danger" id="offClear" type="button">Delete offline maps</button></div>
+      <h3>Offline places</h3>
+      <div class="small">Download restaurants, shops, gas stations and other places around you. Search, the category chips, business icons on the map and place details then load instantly, even with no signal. Photos and reviews still need a connection.</div>
+      <div class="fld"><label>Area around you</label><div class="seg" id="ppRadSeg"><button type="button" data-v="25">25 mi</button><button type="button" data-v="50">50 mi</button><button type="button" data-v="100">100 mi</button><button type="button" data-v="200">200 mi</button></div></div>
+      <div class="small" id="ppEst"></div>
+      <div class="progress" id="ppBar" hidden><i></i></div>
+      <div class="status" id="ppStatus"></div>
+      <div class="btnrow"><button class="pbtn primary" id="ppGo" type="button"><span class="ms">download</span>Download places</button><button class="pbtn outline" id="ppStop" type="button" hidden>Pause</button><button class="pbtn outline danger" id="ppDel" type="button" hidden>Delete offline places</button></div>
       <h3>History &amp; saved audio</h3>
       <div class="btnrow"><button class="pbtn outline danger" id="clearHistory" type="button">Clear search history</button><button class="pbtn outline danger" id="clearCache" type="button">Clear saved voice audio</button></div>
       <div class="small">Saved places, labels and history live only in this browser on this phone.</div>
@@ -970,12 +979,12 @@ const S = {
   persona:(p => p === 'shark' ? 'chill' : p)(LS.get('persona','standard')), customLines:LS.get('customLines',{}), chatter:LS.get('chatter','some'), funFacts:LS.get('funFacts',true), speedWarn:LS.get('speedWarn',true),
   stab:LS.get('stab',0.55), sim:LS.get('sim',0.8), sty:LS.get('sty',0), spd:LS.get('spd',1), boost:LS.get('boost',true),
   theme:LS.get('theme','auto'), skin:LS.get('skin','google'), customColor:LS.get('customColor','#e0559b'), layer:LS.get('layer','default'), mode:LS.get('mode','car'),
-  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), pron:LS.get('pron','it'), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
+  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), pron:LS.get('pron','it'), ppRadius:LS.get('ppRadius',100), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
 Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true), gKey:LS.get('gKey',''), gDay:LS.get('gDay',25), gPhotoDay:LS.get('gPhotoDay',30) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['gKey','gDay','gPhotoDay','vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['gKey','gDay','gPhotoDay','vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','ppRadius','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -1292,19 +1301,19 @@ function hoursTable(oh){
 
 /* ================= places & categories ================= */
 const CATS = [
-  { id:'food', label:'Restaurants', icon:'restaurant', q:'nwr["amenity"~"^(restaurant|fast_food|food_court)$"]', pq:'restaurant', tags:['amenity:restaurant','amenity:fast_food'] },
-  { id:'gas', label:'Gas', icon:'local_gas_station', q:'nwr["amenity"="fuel"]', pq:'gas station', tags:['amenity:fuel'] },
-  { id:'coffee', label:'Coffee', icon:'local_cafe', q:'nwr["amenity"="cafe"]', pq:'cafe', tags:['amenity:cafe'] },
-  { id:'grocery', label:'Groceries', icon:'local_grocery_store', q:'nwr["shop"~"^(supermarket|convenience|greengrocer|grocery)$"]', pq:'market', tags:['shop:supermarket','shop:convenience'] },
-  { id:'hotels', label:'Hotels', icon:'hotel', q:'nwr["tourism"~"^(hotel|motel|guest_house)$"]', pq:'hotel', tags:['tourism:hotel','tourism:motel'] },
+  { id:'food', m:t => /^(restaurant|fast_food|food_court)$/.test(t.amenity), label:'Restaurants', icon:'restaurant', q:'nwr["amenity"~"^(restaurant|fast_food|food_court)$"]', pq:'restaurant', tags:['amenity:restaurant','amenity:fast_food'] },
+  { id:'gas', m:t => t.amenity === 'fuel', label:'Gas', icon:'local_gas_station', q:'nwr["amenity"="fuel"]', pq:'gas station', tags:['amenity:fuel'] },
+  { id:'coffee', m:t => t.amenity === 'cafe', label:'Coffee', icon:'local_cafe', q:'nwr["amenity"="cafe"]', pq:'cafe', tags:['amenity:cafe'] },
+  { id:'grocery', m:t => /^(supermarket|convenience|greengrocer|grocery)$/.test(t.shop), label:'Groceries', icon:'local_grocery_store', q:'nwr["shop"~"^(supermarket|convenience|greengrocer|grocery)$"]', pq:'market', tags:['shop:supermarket','shop:convenience'] },
+  { id:'hotels', m:t => /^(hotel|motel|guest_house)$/.test(t.tourism), label:'Hotels', icon:'hotel', q:'nwr["tourism"~"^(hotel|motel|guest_house)$"]', pq:'hotel', tags:['tourism:hotel','tourism:motel'] },
   { id:'parking', label:'Parking', icon:'local_parking', q:'nwr["amenity"="parking"]["access"!~"private|no"]', pq:'parking', tags:['amenity:parking'] },
-  { id:'ev', label:'EV charging', icon:'ev_station', q:'nwr["amenity"="charging_station"]', pq:'charging station', tags:['amenity:charging_station'] },
-  { id:'pharmacy', label:'Pharmacies', icon:'local_pharmacy', q:'nwr["amenity"="pharmacy"]', pq:'pharmacy', tags:['amenity:pharmacy'] },
-  { id:'atm', label:'ATMs', icon:'local_atm', q:'nwr["amenity"~"^(atm|bank)$"]', pq:'atm', tags:['amenity:atm','amenity:bank'] },
-  { id:'bars', label:'Bars', icon:'local_bar', q:'nwr["amenity"~"^(bar|pub)$"]', pq:'bar', tags:['amenity:bar','amenity:pub'] },
-  { id:'parks', label:'Parks', icon:'park', q:'nwr["leisure"="park"]["name"]', pq:'park', tags:['leisure:park'] },
-  { id:'shopping', label:'Shopping', icon:'shopping_bag', q:'nwr["shop"~"^(mall|department_store|clothes|shoes|variety_store)$"]', pq:'store', tags:['shop:mall','shop:department_store','shop:clothes','shop:variety_store'] },
-  { id:'restroom', label:'Restrooms', icon:'wc', q:'nwr["amenity"="toilets"]["access"!~"private|no|customers"]', pq:'toilets', tags:['amenity:toilets'], alongOnly:true }
+  { id:'ev', m:t => t.amenity === 'charging_station', label:'EV charging', icon:'ev_station', q:'nwr["amenity"="charging_station"]', pq:'charging station', tags:['amenity:charging_station'] },
+  { id:'pharmacy', m:t => t.amenity === 'pharmacy', label:'Pharmacies', icon:'local_pharmacy', q:'nwr["amenity"="pharmacy"]', pq:'pharmacy', tags:['amenity:pharmacy'] },
+  { id:'atm', m:t => /^(atm|bank)$/.test(t.amenity), label:'ATMs', icon:'local_atm', q:'nwr["amenity"~"^(atm|bank)$"]', pq:'atm', tags:['amenity:atm','amenity:bank'] },
+  { id:'bars', m:t => /^(bar|pub)$/.test(t.amenity), label:'Bars', icon:'local_bar', q:'nwr["amenity"~"^(bar|pub)$"]', pq:'bar', tags:['amenity:bar','amenity:pub'] },
+  { id:'parks', m:t => t.leisure === 'park' && !!t.name, label:'Parks', icon:'park', q:'nwr["leisure"="park"]["name"]', pq:'park', tags:['leisure:park'] },
+  { id:'shopping', m:t => /^(mall|department_store|clothes|shoes|variety_store)$/.test(t.shop), label:'Shopping', icon:'shopping_bag', q:'nwr["shop"~"^(mall|department_store|clothes|shoes|variety_store)$"]', pq:'store', tags:['shop:mall','shop:department_store','shop:clothes','shop:variety_store'] },
+  { id:'restroom', m:t => t.amenity === 'toilets' && !/private|no|customers/.test(t.access || ''), label:'Restrooms', icon:'wc', q:'nwr["amenity"="toilets"]["access"!~"private|no|customers"]', pq:'toilets', tags:['amenity:toilets'], alongOnly:true }
 ];
 const ICON_BY_TAG = {
   'amenity=restaurant':'restaurant','amenity=fast_food':'fastfood','amenity=food_court':'restaurant','amenity=cafe':'local_cafe','amenity=fuel':'local_gas_station',
@@ -1461,10 +1470,190 @@ function bboxAround([lat, lng], km){
   const dLat = km / 111, dLng = km / (111 * Math.cos(rad(lat)));
   return [lng - dLng, lat - dLat, lng + dLng, lat + dLat];
 }
+/* ---------- on-phone database (characters, offline places) ---------- */
+const DB = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('wv', 2);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains('chars')) d.createObjectStore('chars', { keyPath:'id' });
+      if (!d.objectStoreNames.contains('ptiles')) d.createObjectStore('ptiles');
+    };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const run = async (store, mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction(store, mode); const req = fn(t.objectStore(store)); t.oncomplete = () => res(req && 'result' in req ? req.result : undefined); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error); }); };
+  return { run };
+})();
+
+/* ---------- offline places: a downloaded copy of nearby businesses for instant results ---------- */
+// The area is split into 0.1° tiles (about 7 miles); each tile is stored as one list on the phone.
+const PP_KEEP = ['name','brand','brand:wikidata','wikidata','wikipedia','amenity','shop','tourism','leisure','office','craft','cuisine','opening_hours','phone','contact:phone','website','contact:website',
+  'addr:housenumber','addr:street','addr:city','takeaway','drive_through','delivery','outdoor_seating','internet_access','wheelchair','diet:vegan','diet:vegetarian','diet:gluten_free','reservation',
+  'fuel:diesel','fuel:octane_87','fuel:octane_91','fuel:e85','socket:nacs','socket:tesla_supercharger','socket:type1_combo','socket:type2','socket:type1','access','website:menu','image','wikimedia_commons',
+  'payment:credit_cards','payment:contactless','toilets','air_conditioning','description'];
+const PP = { meta:LS.get('placePack', null), mem:new Map(), run:null };
+const ppKey = (lat, lng) => `${Math.floor(lat * 10)}:${Math.floor(lng * 10)}`;
+function ppCovered(lat, lng){
+  const m = PP.meta; if (!m || !m.cells) return false;
+  if (hav([m.lat, m.lng], [lat, lng]) > m.radiusKm * 1000) return false;
+  return !!m.cells[`${Math.floor(lat * 2)}:${Math.floor(lng * 2)}`];
+}
+function ppTileKeys(s_, w, n, e){
+  const out = [];
+  for (let a = Math.floor(s_ * 10); a <= Math.floor(n * 10); a++) for (let b = Math.floor(w * 10); b <= Math.floor(e * 10); b++) out.push(`${a}:${b}`);
+  return out;
+}
+async function ppTiles(keys){
+  const need = keys.filter(k => !PP.mem.has(k));
+  if (need.length){
+    try{
+      await DB.run('ptiles', 'readonly', st_ => { need.forEach(k => { const r = st_.get(k); r.onsuccess = () => PP.mem.set(k, r.result || []); }); return null; });
+    }catch{ need.forEach(k => PP.mem.set(k, [])); }
+    while (PP.mem.size > 500) PP.mem.delete(PP.mem.keys().next().value);
+  }
+  return keys.flatMap(k => PP.mem.get(k) || []);
+}
+// one stored place: [osm type+id, lat, lng, tags]
+function ppPlace(r){ const osm = { type:{ n:'node', w:'way', r:'relation' }[r[0][0]], id:+r[0].slice(1) }; return placeFromTags(r[3], r[1], r[2], osm); }
+async function ppQuery(s_, w, n, e, pred){
+  const rows = await ppTiles(ppTileKeys(s_, w, n, e));
+  return rows.filter(r => r[1] >= s_ && r[1] <= n && r[2] >= w && r[2] <= e && (!pred || pred(r[3])));
+}
+async function ppFind(p){
+  if (!p.osm || !ppCovered(p.lat, p.lng)) return null;
+  const id = p.osm.type[0] + p.osm.id, d = 0.02;
+  const rows = await ppTiles(ppTileKeys(p.lat - d, p.lng - d, p.lat + d, p.lng + d));
+  return rows.find(r => r[0] === id) || null;
+}
+// instant name matches near you (used while typing in search)
+async function ppNameSearch(q){
+  const [lat, lng] = here(); if (!ppCovered(lat, lng)) return [];
+  const ql = q.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim(); if (ql.length < 2) return [];
+  const d = 0.35, rows = await ppTiles(ppTileKeys(lat - d, lng - d, lat + d, lng + d));
+  const out = [];
+  for (const r of rows){
+    const nm = (r[3].name || r[3].brand || ''); if (!nm) continue;
+    const t = nm.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+    if (t.startsWith(ql) || t.split(' ').some(w => w.startsWith(ql))) out.push(r);
+  }
+  return out.map(r => { const pl = ppPlace(r); pl.dist = hav([lat, lng], [pl.lat, pl.lng]); return pl; })
+    .sort((a, b) => a.dist - b.dist).slice(0, 8);
+}
+const PP_QUERY = b => `[out:json][timeout:170][maxsize:1073741824];(
+nwr["amenity"~"^(restaurant|fast_food|food_court|cafe|ice_cream|bar|pub|fuel|charging_station|pharmacy|hospital|clinic|bank|atm|post_office|cinema|library|place_of_worship|police|car_wash|car_rental|theatre|marketplace|toilets)$"](${b});
+nwr["amenity"="parking"]["name"](${b});
+nwr["name"]["shop"](${b});
+nwr["tourism"~"^(hotel|motel|guest_house|museum|attraction|viewpoint|zoo|theme_park|gallery)$"](${b});
+nwr["name"]["leisure"~"^(park|fitness_centre|stadium|golf_course|sports_centre|playground)$"](${b});
+);out center tags;`;
+async function ppFetch(box){
+  let lastErr;
+  for (let k = 0; k < OVERPASS.length; k++){
+    const u = OVERPASS[(opStart + k) % OVERPASS.length];
+    try{
+      const r = await fetchTimeout(u, 180000, { method:'POST', body:'data=' + encodeURIComponent(PP_QUERY(box.map(v => v.toFixed(2)).join(','))), headers:{ 'Content-Type':'application/x-www-form-urlencoded' } });
+      if (r.status === 429 || r.status === 504){ lastErr = new Error('busy'); await sleep(4000); continue; }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = await r.json();
+      if (j.remark && /runtime error|timed out|out of memory/i.test(j.remark)) throw new Error('too big');
+      return j.elements || [];
+    }catch(e){ lastErr = e; if (/too big/.test(e.message)) throw e; }
+  }
+  throw lastErr || new Error('Download failed');
+}
+// download one area; if the server says it's too big, split it (always on 0.1° lines)
+async function ppCell(s_, w, n, e){
+  if (PP.run?.stop) return 0;
+  let els;
+  try{ els = await ppFetch([s_, w, n, e]); }
+  catch(err){
+    const spanLat = Math.round((n - s_) * 10), spanLng = Math.round((e - w) * 10);
+    if (spanLat <= 1 && spanLng <= 1) throw err;
+    const mLat = s_ + Math.max(1, Math.floor(spanLat / 2)) / 10, mLng = w + Math.max(1, Math.floor(spanLng / 2)) / 10;
+    let c = 0;
+    const parts = spanLat > 1 && spanLng > 1 ? [[s_, w, mLat, mLng], [s_, mLng, mLat, e], [mLat, w, n, mLng], [mLat, mLng, n, e]]
+      : spanLat > 1 ? [[s_, w, mLat, e], [mLat, w, n, e]] : [[s_, w, n, mLng], [s_, mLng, n, e]];
+    for (const pt of parts){ c += await ppCell(...pt); await sleep(1200); }
+    return c;
+  }
+  const keys = new Set(ppTileKeys(s_ + 1e-6, w + 1e-6, n - 1e-6, e - 1e-6));
+  const buckets = new Map([...keys].map(k => [k, []]));
+  for (const el of els){
+    const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon; if (lat == null || !el.tags) continue;
+    const k = ppKey(lat, lng); if (!buckets.has(k)) continue;
+    const t = {}; PP_KEEP.forEach(x => { if (el.tags[x] != null) t[x] = el.tags[x]; });
+    buckets.get(k).push([el.type[0] + el.id, +lat.toFixed(6), +lng.toFixed(6), t]);
+  }
+  await DB.run('ptiles', 'readwrite', st_ => { buckets.forEach((v, k) => { st_.put(v, k); PP.mem.delete(k); }); return null; });
+  let c = 0; buckets.forEach(v => c += v.length); return c;
+}
+async function ppDownload(radiusMi, onProgress){
+  if (PP.run) return;
+  const [lat, lng] = st.pos ? st.pos.ll : here();
+  const radiusKm = radiusMi * 1.609;
+  const same = PP.meta && PP.meta.radiusKm === radiusKm && hav([PP.meta.lat, PP.meta.lng], [lat, lng]) < 8000;
+  const meta = same ? PP.meta : { lat, lng, radiusKm, radiusMi, cells:{}, count:0, started:Date.now() };
+  if (!same && PP.meta) await ppClear(true);
+  const dLat = radiusKm / 111, dLng = radiusKm / (111 * Math.cos(rad(meta.lat)));
+  const cells = [];
+  for (let a = Math.floor((meta.lat - dLat) * 2); a <= Math.floor((meta.lat + dLat) * 2); a++)
+    for (let b = Math.floor((meta.lng - dLng) * 2); b <= Math.floor((meta.lng + dLng) * 2); b++){
+      const cs = a / 2, cw = b / 2, cn = cs + 0.5, ce = cw + 0.5;
+      const nearLat = Math.max(cs, Math.min(cn, meta.lat)), nearLng = Math.max(cw, Math.min(ce, meta.lng));
+      if (hav([meta.lat, meta.lng], [nearLat, nearLng]) <= radiusKm * 1000) cells.push({ key:`${a}:${b}`, box:[cs, cw, cn, ce], d:hav([meta.lat, meta.lng], [(cs + cn) / 2, (cw + ce) / 2]) });
+    }
+  cells.sort((x, y) => x.d - y.d);
+  meta.total = cells.length;
+  PP.meta = meta; LS.set('placePack', meta);
+  PP.run = { stop:false };
+  try{ PP.wake = await navigator.wakeLock?.request('screen'); }catch{}
+  let failed = 0;
+  try{
+    for (const c of cells){
+      if (PP.run.stop) break;
+      if (meta.cells[c.key]) continue;
+      onProgress && onProgress(meta, 'Downloading');
+      try{ meta.count += await ppCell(...c.box); meta.cells[c.key] = 1; }
+      catch{ failed++; }
+      LS.set('placePack', meta);
+      onProgress && onProgress(meta, 'Downloading');
+      await sleep(1500); // be gentle with the free map servers
+    }
+  } finally {
+    const stopped = PP.run.stop; PP.run = null;
+    try{ await PP.wake?.release(); }catch{} PP.wake = null;
+    if (!stopped && !failed) meta.updated = Date.now();
+    LS.set('placePack', meta);
+    onProgress && onProgress(meta, stopped ? 'Paused' : failed ? `Done, but ${failed} area${failed > 1 ? 's' : ''} failed. Tap Download to retry them.` : 'Done');
+  }
+}
+async function ppClear(quiet){
+  try{ await DB.run('ptiles', 'readwrite', st_ => st_.clear()); }catch{}
+  PP.mem.clear(); PP.meta = null; LS.set('placePack', null);
+  if (!quiet) toast('Offline places deleted');
+}
 const RINGS_KM = [0, 5, 15, 35, 70]; // 0 = the visible map
 const ENOUGH = 6;
 async function categorySearch(cat, onProgress, onQuick){
   const center = searchCenter();
+  if (cat.m && cat.id !== 'parking' && ppCovered(center[0], center[1])){
+    try{
+      let got = [];
+      for (const km of [3, 8, 20, 45, 80]){
+        const [w, s_, e, n] = bboxAround(center, km);
+        const rows = await ppQuery(s_, w, n, e, cat.m);
+        got = rows.map(ppPlace); got.forEach(p => p.dist = hav(center, [p.lat, p.lng]));
+        if (got.length >= ENOUGH) break;
+      }
+      if (got.length){
+        got.sort((a, b) => (!!b.tags.name - !!a.tags.name) || a.dist - b.dist);
+        got = got.slice(0, 60);
+        if (st.pos) got.forEach(p => p.dist = hav(st.pos.ll, [p.lat, p.lng]));
+        return got;
+      }
+    }catch{}
+  }
   let best = [], useOverpass = true, lastErr = null;
   // fast preview from the quick search service while the detailed one loads
   if (onQuick){
@@ -1514,6 +1703,10 @@ function elementsToPlaces(els, center){
 }
 async function enrichPlace(p){
   if (p.tags || !p.osm) return p;
+  try{
+    const r = await ppFind(p);
+    if (r){ const q = placeFromTags(r[3], p.lat, p.lng, p.osm); p.tags = r[3]; p.cat = p.cat || q.cat; p.sub = p.sub || q.sub; if (q.icon !== 'location_on') p.icon = q.icon; return p; }
+  }catch{}
   try{
     const j = await overpass(`[out:json][timeout:10];${p.osm.type}(${p.osm.id});out center;`);
     const e = j.elements?.[0];
@@ -2175,7 +2368,10 @@ async function loadPoi(){
   const box = [s_ - padLat, w - padLng, n + padLat, e + padLng];
   const tok = ++poiTok;
   try{
-    const j = await overpass(poiQuery(box.map(v => v.toFixed(5)).join(',')), 15000);
+    const c0 = map.getCenter();
+    const j = ppCovered(c0.lat, c0.lng)
+      ? { elements:(await ppQuery(box[0], box[1], box[2], box[3], t => !!t.name)).map(r => ({ type:{ n:'node', w:'way', r:'relation' }[r[0][0]], id:+r[0].slice(1), lat:r[1], lon:r[2], tags:r[3] })) }
+      : await overpass(poiQuery(box.map(v => v.toFixed(5)).join(',')), 15000);
     if (tok !== poiTok) return;
     poiLoaded.push(box); if (poiLoaded.length > 40) poiLoaded.shift();
     for (const el of j.elements || []){
@@ -2584,7 +2780,7 @@ async function viewPlace(d){
   const redraw = () => { if (curData().place === p && curView() === 'place') drawPlace(p); };
   await Promise.all([
     !p.media ? loadPlaceMedia(p).then(redraw) : null,
-    p.google === undefined && googleWanted(p) ? loadGoogle(p).then(redraw) : null
+    p.google === undefined && googleWanted(p) ? loadGoogle(p, redraw).then(redraw) : null
   ]);
 }
 
@@ -2689,7 +2885,7 @@ async function gFetch(url, opts = {}, fields){
   return r.json();
 }
 const PRICE = { PRICE_LEVEL_INEXPENSIVE:'$', PRICE_LEVEL_MODERATE:'$$', PRICE_LEVEL_EXPENSIVE:'$$$', PRICE_LEVEL_VERY_EXPENSIVE:'$$$$' };
-async function loadGoogle(p){
+async function loadGoogle(p, onUpdate){
   const hit = gCacheGet(p); if (hit !== undefined){ p.google = hit; return; }
   if (!gCan('details')){ p.google = null; p.googleNote = 'Daily Google limit reached'; return; }
   p.google = 'loading';
@@ -2715,6 +2911,7 @@ async function loadGoogle(p){
       photos:[]
     };
     p.google = v;
+    onUpdate && onUpdate(); // show rating, hours and reviews right away; photos follow
     await gPhotos(p, 3);
     gCachePut(p, p.google);
   }catch(e){ p.google = null; p.googleNote = e.message; }
@@ -2722,15 +2919,16 @@ async function loadGoogle(p){
 // turn photo references into image links, a few at a time (each one counts as a Google photo)
 async function gPhotos(p, n){
   const v = p.google; if (!v || !v.photoRefs) return;
-  const todo = v.photoRefs.slice(v.photos.length, v.photos.length + n);
-  for (const ref of todo){
+  const todo = [];
+  for (const ref of v.photoRefs.slice(v.photos.length, v.photos.length + n)){
     if (!gCan('photos')){ p.googleNote = 'Daily photo limit reached'; break; }
-    gCount('photos');
-    try{
-      const j = await gFetch(`https://places.googleapis.com/v1/${ref.name}/media?maxWidthPx=1000&skipHttpRedirect=true`);
-      if (j.photoUri) v.photos.push({ thumb:j.photoUri, full:j.photoUri, page:v.maps || j.photoUri, credit:(ref.by ? ref.by + ' · ' : '') + 'Google' });
-    }catch(e){ p.googleNote = e.message; break; }
+    gCount('photos'); todo.push(ref);
   }
+  // fetch them all at once (faster than one by one)
+  const got = await Promise.all(todo.map(ref => gFetch(`https://places.googleapis.com/v1/${ref.name}/media?maxWidthPx=1000&skipHttpRedirect=true`)
+    .then(j => j.photoUri ? { thumb:j.photoUri, full:j.photoUri, page:v.maps || j.photoUri, credit:(ref.by ? ref.by + ' · ' : '') + 'Google' } : null)
+    .catch(e => { p.googleNote = e.message; return null; })));
+  v.photos.push(...got.filter(Boolean));
 }
 function stars(r){ const f = Math.round(r * 2) / 2; let h = ''; for (let i = 1; i <= 5; i++) h += `<i class="${f >= i ? 'on' : f >= i - 0.5 ? 'half' : ''}"></i>`; return `<span class="stars">${h}</span>`; }
 function gStatusText(){
@@ -2817,6 +3015,8 @@ function drawPlace(p){
     ${allPhotos.length ? `<div class="photos" id="photoStrip">${allPhotos.map((ph, i) => `<button class="ph" data-ph="${i}"><img src="${esc(ph.thumb)}" alt="" loading="lazy"></button>`).join('')}${G && G.photoRefs.length > G.photos.length ? `<button class="ph more" id="gMore">${ms('add_photo_alternate')}<span>More photos</span></button>` : ''}</div>
       <div class="phnote">${G && G.photos.length ? 'Photos from Google' + (media && media.photos.length ? ' and Wikimedia Commons' : '') : (media && media.nearby ? 'Photos taken near here' : 'Photos') + ' · Wikimedia Commons'}</div>`
       : (!media || gLoading) ? '<div class="photos"><span class="ph skel"></span><span class="ph skel"></span><span class="ph skel"></span></div>' : ''}
+    ${!G && S.gKey && p.googleNote ? `<div class="gnote">${ms('info','sm')}Google photos & reviews: ${esc(p.googleNote)}</div>` : ''}
+    ${!S.gKey && googleWanted({ ...p, name:p.name }) === false && (p.cat || t.amenity || t.shop) ? `<button class="gnote link" id="gHint">${ms('photo_library','sm')}Get photos, ratings and reviews for places like this</button>` : ''}
     ${hl.length ? `<div class="hl">${hl.map(h => `<span class="hlc">${ms('check','sm')}${esc(h)}</span>`).join('')}</div>` : ''}
     ${about ? `<div class="about"><div class="sec" style="padding:0 0 6px">${media && media.brandAbout && !about.google ? `About ${esc(t.brand || p.name)}` : 'About'}</div><p>${esc(about.text.length > 420 ? about.text.slice(0, 400).replace(/\s+\S*$/, '') + '…' : about.text)}</p>${about.url ? `<a href="${esc(about.url)}" target="_blank" rel="noopener">Read more on Wikipedia</a>` : ''}</div>` : ''}
     ${G && G.reviews.length ? `<div class="reviews"><div class="sec" style="padding:0 0 6px">Reviews</div>${G.reviews.map(r => `<div class="rev"><div class="rh"><b>${esc(r.who)}</b>${stars(r.stars)}<span>${esc(r.when)}</span></div><p>${esc(r.text.length > 260 ? r.text.slice(0, 250).replace(/\s+\S*$/, '') + '…' : r.text)}</p></div>`).join('')}${G.maps ? `<a href="${esc(G.maps)}" target="_blank" rel="noopener">More reviews on Google Maps</a>` : ''}</div>` : ''}
@@ -2835,7 +3035,7 @@ function drawPlace(p){
       <button class="rowi" id="aCoords"><span class="ic plain">${ms('pin_drop')}</span><span class="tx"><div class="s" style="font-size:15px;color:var(--ink)">${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</div></span><span class="ms sm" style="color:var(--muted)">content_copy</span></button>
       ${!p.tags && p.osm ? '<div class="loading"><span class="spin"></span>Loading details…</div>' : ''}
     </div>
-    ${G ? '<div class="gattr">Ratings, reviews and photos from Google</div>' : p.googleNote && S.gKey ? `<div class="gattr">${esc(p.googleNote)}</div>` : ''}`;
+    ${G ? '<div class="gattr">Ratings, reviews and photos from Google</div>' : ''}`;
   $('aDir').onclick = () => go('directions', { dir:{ from:null, stops:[], to:{ ...p } } });
   $('aStart').onclick = () => quickStart(p);
   $('aSave').onclick = () => openSave(p);
@@ -2843,6 +3043,7 @@ function drawPlace(p){
   if ($('aFix')) $('aFix').onclick = () => go('pinfix', { place:p });
   $('aCoords').onclick = () => copyText(`${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`);
   if ($('photoStrip')) $('photoStrip').querySelectorAll('[data-ph]').forEach(b => b.onclick = () => openPhoto(p._photos, +b.dataset.ph));
+  if ($('gHint')) $('gHint').onclick = () => { openSettings(); showSetPage('google'); };
   if ($('gMore')) $('gMore').onclick = async () => { $('gMore').disabled = true; await gPhotos(p, 4); gCachePut(p, p.google); if (curData().place === p) drawPlace(p); if (p.googleNote) toast(p.googleNote); };
   if ($('hrsToggle')) $('hrsToggle').onclick = () => { const h = $('hrsTable'); h.hidden = !h.hidden; $('hrsChev').textContent = h.hidden ? 'expand_more' : 'expand_less'; };
 }
@@ -2921,7 +3122,7 @@ $('svDone').onclick = () => {
 };
 
 /* ---------- search overlay ---------- */
-let sugTimer = null, sugTok = 0;
+let sugTimer = null, sugTok = 0, sugOffline = { q:'', items:[] };
 function viewSearch(d){
   const inp = $('sInput');
   inp.value = d.q || '';
@@ -2962,6 +3163,11 @@ function drawSuggestions(items, full){
   const list = $('sList');
   let html = '', all = [];
   const mine = q ? localMatches(q) : [];
+  if (q && sugOffline.q === q && sugOffline.items.length){
+    const extra = sugOffline.items.filter(p => !mine.some(m => samePlace(m, p)) && !(items || []).some(x => samePlace(x, p) || (x.osm && p.osm && x.osm.id === p.osm.id)));
+    var searching_ = items == null;
+    items = [...extra, ...(items || [])];
+  }
   const fullRowHtml = q && !full ? `<button class="rowi" id="fullRow"><span class="ic">${ms('search')}</span><span class="tx"><div class="t">Search for “${esc(q)}”</div><div class="s">${looksLikeAddress(q) ? 'Best for street addresses' : 'See all results nearby'}</div></span></button>` : '';
   if (d.pick && d.pick.kind === 'field'){
     all.push({ isMe:true, name:'Your location', icon:'my_location' });
@@ -2986,8 +3192,9 @@ function drawSuggestions(items, full){
   // your own places first, then "Search for…", then everything else
   const nMine = q ? all.filter(p => mine.includes(p) || p.isMe).length : 0;
   html += `<div class="rows" id="sRows">${all.slice(0, nMine).map((p, i) => rowHtml(p, i)).join('')}${fullRowHtml}${all.slice(nMine).map((p, i) => rowHtml(p, i + nMine)).join('')}</div>`;
-  if (q && !items) html += `<div class="loading"><span class="spin"></span>Searching…</div>`;
-  if (q && items && !all.length) html += `<div class="empty">No matches for “${esc(q)}”. Try adding a city or street.</div>`;
+  const stillSearching = typeof searching_ !== 'undefined' ? searching_ : items == null;
+  if (q && stillSearching) html += `<div class="loading"><span class="spin"></span>Searching…</div>`;
+  if (q && !stillSearching && !all.length) html += `<div class="empty">No matches for “${esc(q)}”. Try adding a city or street.</div>`;
   if (!q && !all.length) html += `<div class="empty">Search for a place or address.</div>`;
   list.innerHTML = html;
   lastSug = all.filter(p => !p.isMe);
@@ -3003,6 +3210,7 @@ $('sInput').addEventListener('input', () => {
   if (!q){ drawSuggestions(); return; }
   drawSuggestions(null);
   const tok = ++sugTok;
+  ppNameSearch(q).then(items => { if (tok !== sugTok) return; sugOffline = { q, items }; if (items.length) drawSuggestions(null); }).catch(() => {});
   sugTimer = setTimeout(async () => {
     try{ const items = rankLocal(await photon(q, 10)); if (tok === sugTok) drawSuggestions(items); }
     catch{ if (tok === sugTok) drawSuggestions([]); }
@@ -4701,13 +4909,7 @@ let setPage = null;
 const CHAR_KEYS = ['asstName','pron','voiceId','voiceName','model','stab','sim','sty','spd','boost','persona','customLines','chatter','vibe','skin','customColor','buddySize','buddyOn','wakePhrase'];
 const CHARS = { list:[] };
 const IDB = (() => {
-  let dbp = null;
-  const open = () => dbp || (dbp = new Promise((res, rej) => {
-    const r = indexedDB.open('wv', 1);
-    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('chars')) r.result.createObjectStore('chars', { keyPath:'id' }); };
-    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-  }));
-  const run = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('chars', mode); const req = fn(t.objectStore('chars')); t.oncomplete = () => res(req && 'result' in req ? req.result : undefined); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error); }); };
+  const run = (mode, fn) => DB.run('chars', mode, fn);
   return { all:() => run('readonly', st_ => st_.getAll()), put:c => run('readwrite', st_ => st_.put(c)), del:id => run('readwrite', st_ => st_.delete(id)) };
 })();
 async function loadChars(){ try{ CHARS.list = ((await IDB.all()) || []).sort((a, b) => a.name.localeCompare(b.name)); }catch{ CHARS.list = []; } return CHARS.list; }
@@ -4829,7 +5031,7 @@ function openSettings(){
   syncSeg('unitsSeg', S.units); syncSeg('themeSeg', S.theme);
   syncSliders();
   status('');
-  $('gKey').value = S.gKey; gStatusText(); applyPronouns(); syncHandsFree(); lockKeys(); showSetPage(null);
+  $('gKey').value = S.gKey; gStatusText(); ppUi(); applyPronouns(); syncHandsFree(); lockKeys(); showSetPage(null);
   openModal('settings');
 }
 function syncSeg(id, v){ document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); }
@@ -4959,6 +5161,33 @@ $('clearHistory').onclick = () => { LS.set('recents', []); toast('Search history
 document.querySelectorAll('#pronSeg button').forEach(b => b.onclick = () => { S.pron = b.dataset.v; save(); applyPronouns(); });
 $('asstName').addEventListener('change', applyPronouns);
 applyPronouns();
+/* offline places settings */
+function ppEstimate(mi){
+  return ({ 25:'Takes a minute or two, roughly 5–15 MB.', 50:'Takes about 5 minutes, roughly 10–30 MB.', 100:'Takes about 10–20 minutes on Wi-Fi, roughly 25–70 MB.', 200:'Takes about 30–60 minutes on Wi-Fi, roughly 60–200 MB (more if it reaches a big city).' })[mi] + ' Keep the app open while it downloads; you can pause and pick up where you left off.';
+}
+function ppUi(meta, state){
+  const m = meta || PP.meta, running = !!PP.run;
+  syncSeg('ppRadSeg', String(S.ppRadius));
+  $('ppEst').textContent = ppEstimate(S.ppRadius);
+  const done = m ? Object.keys(m.cells || {}).length : 0, total = m ? m.total || 0 : 0;
+  $('ppBar').hidden = !m || (!running && done >= total);
+  $('ppBar').querySelector('i').style.width = total ? (done / total * 100) + '%' : '0%';
+  $('ppStatus').textContent = !m ? '' : running ? `${state || 'Downloading'}… ${done} of ${total} areas · ${m.count.toLocaleString()} places`
+    : done >= total ? `${m.count.toLocaleString()} places saved within ${m.radiusMi} miles${m.updated ? ` · updated ${new Date(m.updated).toLocaleDateString([], { month:'short', day:'numeric' })}` : ''}.`
+    : `${state && state !== 'Downloading' ? state + ' · ' : 'Paused · '}${done} of ${total} areas done, ${m.count.toLocaleString()} places so far.`;
+  $('ppGo').hidden = running;
+  $('ppGo').innerHTML = `${ms('download')}${!m ? 'Download places' : done < total ? 'Resume download' : 'Update places'}`;
+  $('ppStop').hidden = !running; $('ppDel').hidden = running || !m;
+}
+document.querySelectorAll('#ppRadSeg button').forEach(b => b.onclick = () => { if (PP.run) return; S.ppRadius = +b.dataset.v; save(); ppUi(); });
+$('ppGo').onclick = () => {
+  if (!st.pos && !NATIVE) toast('Using the map center, since your location is unknown');
+  if (PP.meta && Object.keys(PP.meta.cells || {}).length >= (PP.meta.total || 1) && PP.meta.radiusMi === S.ppRadius){ PP.meta.cells = {}; PP.meta.count = 0; }
+  ppDownload(S.ppRadius, (m, stt) => { if (!$('settings').hidden) ppUi(m, stt); if (stt === 'Done') toast(`Offline places ready: ${m.count.toLocaleString()} places`); }).catch(e => toast(e.message || 'Download failed'));
+  setTimeout(() => ppUi(), 50);
+};
+$('ppStop').onclick = () => { if (PP.run) PP.run.stop = true; $('ppStop').textContent = 'Pausing…'; setTimeout(() => { $('ppStop').textContent = 'Pause'; }, 4000); };
+confirmTap($('ppDel'), async () => { await ppClear(); ppUi(); });
 /* fat-finger protection */
 KEY_FIELDS.forEach(([i, b]) => wireKey(i, b));
 confirmTap($('clearCache'), $('clearCache').onclick);
