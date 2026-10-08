@@ -2102,16 +2102,26 @@ const BUDDY_SLOTS = [
   { k:'open', label:'Mouth open', req:true },
   { k:'half', label:'Half open' },
   { k:'blink', label:'Blink' },
-  { k:'happy', label:'Happy', hint:'Start, arrival, badges' },
-  { k:'surprised', label:'Surprised', hint:'Missed a turn' },
-  { k:'worried', label:'Worried', hint:'Going too fast' }
+  { k:'happy', label:'Happy', hint:'Start, arrival, good news' },
+  { k:'surprised', label:'Surprised', hint:'Missed turn, faster route' },
+  { k:'worried', label:'Worried', hint:'Speeding, accidents ahead' },
+  { k:'laughing', label:'Laughing', hint:'Something funny' },
+  { k:'smug', label:'Smug', hint:'Teasing, sarcasm' },
+  { k:'annoyed', label:'Annoyed', hint:'Missed turns again, roasts' },
+  { k:'sad', label:'Sad', hint:'Bad news, errors' },
+  { k:'listening', label:'Listening', hint:'While you talk to her' },
+  { k:'thinking', label:'Thinking', hint:'Working on an answer' },
+  { k:'sleepy', label:'Sleepy', hint:'Long quiet stretch, late night' },
+  { k:'left', label:'Look left', hint:'Turning left' },
+  { k:'right', label:'Look right', hint:'Turning right' }
 ];
+const BUDDY_MOODS = ['happy','surprised','worried','laughing','smug','annoyed','sad','thinking'];
 const BUDDY_IDLE_VIEWS = ['explore','go','saved','results','place','list'];
 const Buddy = (() => {
   let frames = LS.get('buddy', {}) || {};
   let talking = null;       // { env, clock, mood, random, until }
   let afterMood = null, afterMoodUntil = 0, blinkUntil = 0, nextBlink = performance.now() + 3000, flapAt = 0, flapOpen = false;
-  let raf = 0, shownFrame = '';
+  let raf = 0, shownFrame = '', hold = null, lastTalk = performance.now();
   const el = () => $('buddy'), img = () => $('buddyImg');
   const ready = () => !!(frames.closed && frames.open);
   function idleShow(){
@@ -2147,7 +2157,10 @@ const Buddy = (() => {
       el().classList.toggle('talking', S.buddyMotion === 'bob');
     } else {
       el().classList.remove('talking');
+      const late = new Date().getHours(); const night = late >= 23 || late < 5;
       if (now < afterMoodUntil && afterMood && frames[afterMood]) k = afterMood;
+      else if (hold && frames[hold]) k = hold;
+      else if (frames.sleepy && !hold && now - lastTalk > (night ? 60000 : 240000)) k = 'sleepy';
       else if (frames.blink){
         if (now > nextBlink){ blinkUntil = now + 140; nextBlink = now + 2500 + Math.random() * 4000; }
         if (now < blinkUntil) k = 'blink';
@@ -2170,8 +2183,10 @@ const Buddy = (() => {
     frames:() => frames,
     ready,
     save(next){ frames = next; LS.set('buddy', frames); shownFrame = ''; kick(); },
-    start(opts){ talking = opts; kick(); },
-    stop(){ if (talking && talking.mood){ afterMood = talking.mood; afterMoodUntil = performance.now() + 1500; } talking = null; kick(); },
+    start(opts){ talking = opts; lastTalk = performance.now(); kick(); },
+    // a frame that stays while nothing is being said (listening, thinking)
+    hold(k){ hold = k || null; if (k) lastTalk = performance.now(); kick(); },
+    stop(){ lastTalk = performance.now(); if (talking && talking.mood){ afterMood = talking.mood; afterMoodUntil = performance.now() + 1500; } talking = null; kick(); },
     mood(m, ms_ = 2000){ afterMood = m; afterMoodUntil = performance.now() + ms_; kick(); },
     refresh(){ kick(); }
   };
@@ -3488,6 +3503,7 @@ ${VIBE_PROMPT[S.vibe] || VIBE_PROMPT.casual}
 ${S.geminiKey && S.asstTone ? `Voice analysis: the user's message may start with a note in square brackets, like [whispering] or [sounds sarcastic, laughing], describing HOW they said it. React naturally: answer softly and briefly if they whisper, play along if they're sarcastic, match excitement or annoyance. Never mention or repeat the note itself.` : ''}
 ${S.model === 'eleven_v3' ? 'Your voice can perform one short audio tag at the start of a sentence, like [whispers], [laughs], [sighs] or [sarcastically]. Use one only when it fits the moment, at most once per reply.' : 'Never use square-bracket tags.'}
 Rules:
+- Start every reply with one mood tag in curly braces that fits how you feel saying it: {happy} {laughing} {smug} {annoyed} {surprised} {worried} {sad} {thinking}. It only changes your avatar's face and is never read aloud, so don't mention it.
 - ${LEN_PROMPT[S.asstLen] || LEN_PROMPT.auto}
 - If the user asks you to keep it short, or to tell them more, do that for the rest of the conversation. Spoken style only: no lists, markdown, emoji, URLs, or parentheses.
 - Lead with the answer. Round numbers. Say times like "3:30 PM".
@@ -3783,7 +3799,7 @@ function askCard(state, html){
   $('askBody').innerHTML = html;
   placeFabs();
 }
-function closeAsk(){ $('askCard').hidden = true; ASK.state = 'idle'; if (recCancel) recCancel(); stopListening(); placeFabs(); resumeMusic(); }
+function closeAsk(){ Buddy.hold(null); $('askCard').hidden = true; ASK.state = 'idle'; if (recCancel) recCancel(); stopListening(); placeFabs(); resumeMusic(); }
 $('askClose').onclick = () => { stopVoice(); closeAsk(); };
 
 /* ---------- tone-aware listening: record your voice, let Gemini hear HOW you said it ---------- */
@@ -3864,7 +3880,7 @@ async function startAsk(followUp = false){
   stopVoice();
   wakeStop();
   quietMusic();
-  ASK.state = 'listening';
+  ASK.state = 'listening'; Buddy.hold('listening');
   askCard('listening', `<div class="askq">${ms('mic','fill')}<span id="askLive">${followUp ? 'Listening for a follow-up…' : 'Listening…'}</span>${toneAvailable() && !ASK.toneBroken ? '<span class="bars" id="askBars"><i></i><i></i><i></i><i></i><i></i></span>' : ''}</div>`);
   await sleep(followUp ? 150 : 350); // let the speaker and microphone settle before listening
   if (ASK.state !== 'listening') return;
@@ -4092,7 +4108,7 @@ setTimeout(() => {
 async function handleQuestion(q, delivery = ''){
   if (ASK.state !== 'listening') return;
   q = (q || '').trim(); if (!q) return;
-  ASK.state = 'thinking';
+  ASK.state = 'thinking'; Buddy.hold('thinking');
   const toneChip = delivery ? `<span class="tonechip">${ms('graphic_eq','sm')}${esc(delivery)}</span>` : '';
   askCard('thinking', `<div class="askq">“${esc(q)}”</div>${toneChip}<div class="askmsg"><span class="spin"></span>${esc(assistantName())} is thinking…</div>`);
   let acked = false, gotText = false;
@@ -4107,13 +4123,17 @@ async function handleQuestion(q, delivery = ''){
     }, delivery);
     clearTimeout(slow);
     if (ASK.state !== 'thinking') return;
-    ASK.state = 'answer';
+    ASK.state = 'answer'; Buddy.hold(null);
+    // she tags her own mood ({laughing}, {smug}…); it picks the avatar frame and isn't read out
+    let mood = null;
+    ans.text = (ans.text || '').replace(/\{\s*([a-z]+)\s*\}\s*/gi, (m, w) => { w = w.toLowerCase(); if (!mood && BUDDY_MOODS.includes(w)) mood = w; return ''; }).trim();
+    if (!mood && delivery){ mood = /laugh/i.test(delivery) ? 'laughing' : /sarcas/i.test(delivery) ? 'smug' : /annoy|angry|frustrat/i.test(delivery) ? 'annoyed' : /sad|upset/i.test(delivery) ? 'sad' : null; }
     askCard('answer', `<div class="askq">“${esc(q)}”</div>${toneChip}<div class="askans">${esc(ans.text || "I couldn't find anything on that.")}</div>
       ${ans.sources.length ? `<div class="asksrc">${ans.sources.map(s_ => `<a href="${esc(s_.url)}" target="_blank" rel="noopener">${esc(s_.title.length > 40 ? s_.title.slice(0, 38) + '…' : s_.title)}</a>`).join('')}</div>` : ''}
       <div class="btnrow"><button class="pbtn outline" id="askAgain">${ms('mic')}Ask another</button></div>`);
     $('askAgain').onclick = () => { ASK.state = 'idle'; startAsk(); };
     if (acked) await waitQuiet(5000);
-    say(ans.text || "Hm... I couldn't find anything on that.", !acked);
+    say(ans.text || "Hm... I couldn't find anything on that.", !acked, mood);
     await sleep(300);
     await waitQuiet(30000);
     if (ASK.state !== 'answer') return;
@@ -4123,7 +4143,8 @@ async function handleQuestion(q, delivery = ''){
     clearTimeout(slow);
     ASK.state = 'idle';
     askCard('error', `<div class="askmsg">${esc(e.name === 'AbortError' ? 'That took too long. Check your signal and try again.' : e.message || 'Something went wrong.')}</div>`);
-    say(e.name === 'AbortError' || /fetch/i.test(e.message) ? "Hm... I can't reach the internet right now." : "Sorry... something went wrong.", true, 'surprised');
+    Buddy.hold(null);
+    say(e.name === 'AbortError' || /fetch/i.test(e.message) ? "Hm... I can't reach the internet right now." : "Sorry... something went wrong.", true, 'sad');
     resumeMusic();
     setTimeout(() => { if (ASK.state === 'idle') closeAsk(); }, 6000);
   }
@@ -4452,7 +4473,8 @@ function applyNewRoute(n, route){
 async function reroute(silent){
   const n = st.nav; if (!n || n.rerouting || !st.pos) return;
   n.rerouting = true; n.lastReroute = Date.now();
-  if (!silent) say(line('reroute'), true, 'surprised');
+  n.reroutes = (n.reroutes || []).filter(t => Date.now() - t < 300000); n.reroutes.push(Date.now());
+  if (!silent) say(line('reroute'), true, n.reroutes.length >= 2 ? 'annoyed' : 'surprised');
   const p = n.plan;
   const remaining = p.stops.slice(p.passed);
   try{
@@ -4563,8 +4585,9 @@ function navTick(){
   const th = thresholds(), ph = phrasesFor(n, i);
   let prev = i - 1; while (prev > 0 && n.steps[prev]._skip) prev--;
   const legLen = n.stepStart[i] - n.stepStart[Math.max(0, prev)];
-  if (!a.now && d <= th.now){ a.now = a.mid = a.far = 1; say(ph.now, true); }
-  else if (!a.mid && d <= th.mid && d > th.mid * 0.6 && d > th.now + 30){ a.mid = a.far = 1; say(ph.mid); }
+  const turnMood = /left/.test(step.maneuver.modifier || '') ? 'left' : /right/.test(step.maneuver.modifier || '') ? 'right' : null;
+  if (!a.now && d <= th.now){ a.now = a.mid = a.far = 1; say(ph.now, true, turnMood); }
+  else if (!a.mid && d <= th.mid && d > th.mid * 0.6 && d > th.now + 30){ a.mid = a.far = 1; say(ph.mid, false, turnMood); }
   else if (!a.far && d <= th.far && d > th.far * 0.75 && d > th.mid + 100 && legLen > th.far * 0.9){ a.far = 1; say(ph.far); }
   else extrasTick(n, p, pr, d, th, left, secs);
   alertTick(n, pr);
