@@ -37,7 +37,7 @@
     </queries>
 
     <application
-        android:label="Waypoint Voice"
+        android:label="Shotgun"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/AppTheme"
@@ -121,7 +121,7 @@
         <service
             android:name=".MediaListener"
             android:exported="true"
-            android:label="Waypoint Voice music controls"
+            android:label="Shotgun music controls"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
