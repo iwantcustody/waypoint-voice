@@ -29,7 +29,7 @@ It's a personal app for you and a few friends. It isn't on the Play Store; you i
 - Speed camera alerts, plus live accident, closure, hazard and road work alerts
 - Keeps navigating with the screen off or another app on top
 - YouTube Music / Spotify controls on the navigation screen
-- Offline maps for a saved route
+- Offline maps for a saved route, plus **offline places**: download restaurants, shops and gas stations up to 200 miles around you so search and place pages load instantly
 
 ### Your navigator
 - **Any ElevenLabs voice**, with Stability, Similarity, Style and Speed sliders
@@ -130,6 +130,8 @@ Search a place → **Directions** → choose a route → **Start**. Want to see 
 - "End navigation"
 
 **Offline maps:** on the directions screen, tap **Save offline** before a trip through areas with no signal.
+
+**Offline places:** Settings → **Storage & history** → pick an area (25–200 miles) → **Download places**. Search, the category chips and place pages then load instantly. Re-run **Update places** every month or so.
 
 **Share your trip:** tap 📍 while navigating and send the link. Your friend sees your position and ETA update about once a minute until you arrive or tap 📍 again. Anyone with the link can see it, so only send it to people you trust.
 
