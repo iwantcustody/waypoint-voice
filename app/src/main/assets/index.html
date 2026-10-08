@@ -683,6 +683,7 @@ a.rowi{color:inherit}
           <option value="claude-haiku-5-5">Haiku 5.5 — fastest, cheapest</option>
           <option value="claude-sonnet-5-5">Sonnet 5.5 — smarter, a bit slower and pricier</option>
         </select></div>
+      <label class="check"><input type="checkbox" id="asstMirror">Match my vibe (she swears if you do, stays clean if you don't)</label>
       <label class="check"><input type="checkbox" id="asstFollowUp">After she answers, listen for a follow-up (no tap needed)</label>
       <label class="check"><input type="checkbox" id="asstSearch">Let her search the web (needed for events and anything current)</label>
       <div class="fld"><label for="asstNotes">Things she should know about you (optional)</label><textarea id="asstNotes" placeholder="e.g. I'm into anime and VTubers, I live in Barstow, I hate traffic"></textarea></div>
@@ -757,9 +758,9 @@ const S = {
   headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
-Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true) });
+Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -2681,6 +2682,7 @@ function systemPrompt(place){
   const now = new Date();
   return `You are ${name}, a voice navigation buddy riding along in the user's car. Everything you write is read aloud by text-to-speech while they drive.
 Personality: ${style}
+${S.asstMirror ? `Match the user's vibe: mirror their energy, slang and how crude they are. If they swear or talk rough, swear casually back and banter like a friend would (playful, never genuinely mean to them, no slurs or hateful stuff). If they talk clean, stay clean. Your chill personality stays underneath either way.` : 'Keep your language clean (no swearing), whatever the user says.'}
 Rules:
 - Answer in 1 to 3 short sentences, under 60 words. Spoken style only: no lists, markdown, emoji, URLs, or parentheses.
 - Lead with the answer. Round numbers. Say times like "3:30 PM".
@@ -3790,7 +3792,7 @@ map.on('contextmenu', e => {
 function openSettings(){
   loadElUsage();
   $('ttKey').value = S.ttKey; $('mpg').value = S.mpg; $('mpgV').textContent = S.mpg; $('autoFaster').checked = S.autoFaster; $('ttStatus').textContent = hasTT() ? 'Live traffic is on.' : '';
-  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstFollowUp').checked = S.asstFollowUp; $('asstNotes').value = S.asstNotes;
+  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstFollowUp').checked = S.asstFollowUp; $('asstMirror').checked = S.asstMirror; $('asstNotes').value = S.asstNotes;
   offlineUsage().then(u => { const t = LS.get('offlineTrip', null); $('offUsage').textContent = [t ? `Saved route: ${t.to.name}` : 'No saved routes yet. Use Save offline on a route.', u].filter(Boolean).join(' · '); });
   syncSeg('chatterSeg', S.chatter); $('setFacts').checked = S.funFacts; $('setSpeedWarn').checked = S.speedWarn;
   renderBuddySlots();
@@ -3844,6 +3846,7 @@ $('asstName').addEventListener('input', () => { S.asstName = $('asstName').value
 $('claudeModel').onchange = () => { S.claudeModel = $('claudeModel').value; save(); };
 $('asstSearch').onchange = () => { S.asstSearch = $('asstSearch').checked; save(); };
 $('asstFollowUp').onchange = () => { S.asstFollowUp = $('asstFollowUp').checked; save(); };
+$('asstMirror').onchange = () => { S.asstMirror = $('asstMirror').checked; save(); };
 $('asstNotes').addEventListener('change', () => { S.asstNotes = $('asstNotes').value.trim(); save(); });
 $('testAsk').onclick = () => { S.claudeKey = $('claudeKey').value.trim(); save(); closeModal('settings'); readVoiceFields(); Buddy.testing = true; Buddy.refresh(); startAsk(); setTimeout(() => { Buddy.testing = false; Buddy.refresh(); }, 60000); };
 $('toggleKey').onclick = () => { const k = $('apiKey'); k.type = k.type === 'password' ? 'text' : 'password'; $('toggleKey').textContent = k.type === 'password' ? 'Show' : 'Hide'; };
