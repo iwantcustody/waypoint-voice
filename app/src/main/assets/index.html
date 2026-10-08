@@ -936,6 +936,10 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
       <div class="progress" id="ppBar" hidden><i></i></div>
       <div class="status" id="ppStatus"></div>
       <div class="btnrow"><button class="pbtn primary" id="ppGo" type="button"><span class="ms">download</span>Download places</button><button class="pbtn outline" id="ppStop" type="button" hidden>Pause</button><button class="pbtn outline danger" id="ppDel" type="button" hidden>Delete offline places</button></div>
+      <h3>Import from Google Maps</h3>
+      <div class="small">Bring in your saved places, lists and labeled places (Home, Work and the rest) from Google. Get the file at <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a>: tap <b>Deselect all</b>, tick <b>Maps (your places)</b> and <b>Saved</b>, then <b>Next step → Create export</b>. Google emails you a download link; pick that .zip here.</div>
+      <div class="btnrow"><label class="pbtn primary" for="gmFile"><span class="ms">upload_file</span>Pick Takeout file</label><input type="file" id="gmFile" accept=".zip,.json,.csv,application/zip,application/json,text/csv" multiple hidden></div>
+      <div class="status" id="gmStatus"></div>
       <h3>History &amp; saved audio</h3>
       <div class="btnrow"><button class="pbtn outline danger" id="clearHistory" type="button">Clear search history</button><button class="pbtn outline danger" id="clearCache" type="button">Clear saved voice audio</button></div>
       <div class="small">Saved places, labels and history live only in this browser on this phone.</div>
@@ -2879,7 +2883,16 @@ function gCachePut(p, v){
 async function gFetch(url, opts = {}, fields){
   const headers = { 'X-Goog-Api-Key':S.gKey.trim(), ...(fields ? { 'X-Goog-FieldMask':fields } : {}), ...(opts.headers || {}) };
   const r = await fetchTimeout(url, 12000, { ...opts, headers });
-  if (r.status === 403 || r.status === 400){ const t = await r.text(); throw new Error(/billing/i.test(t) ? 'Turn on billing for your Google Cloud project' : /not been used|disabled/i.test(t) ? 'Enable "Places API (New)" in Google Cloud' : /API key/i.test(t) ? 'Google rejected the key' : 'Google error ' + r.status); }
+  if (r.status === 403 || r.status === 400){
+    const t = await r.text(); let msg = '';
+    try{ msg = JSON.parse(t).error?.message || ''; }catch{}
+    throw new Error(/billing/i.test(t) ? 'Billing isn\'t on for this Google Cloud project yet (it can take a few minutes after setup)'
+      : /has not been used|is disabled|SERVICE_DISABLED/i.test(t) ? 'Turn on "Places API (New)" for this project in Google Cloud (it can take a few minutes to kick in)'
+      : /are blocked|API_KEY_SERVICE_BLOCKED/i.test(t) ? 'Your key is restricted to a different API. In Credentials, edit the key and tick "Places API (New)" (not the old "Places API")'
+      : /referer|referrer|API_KEY_HTTP_REFERRER_BLOCKED|android app|ANDROID_APP_BLOCKED/i.test(t) ? 'Your key has an app/website restriction. In Credentials, set "Application restrictions" to None'
+      : /API key not valid|API_KEY_INVALID/i.test(t) ? 'Google says the key isn\'t valid. Copy it again from Credentials'
+      : 'Google error ' + r.status + (msg ? ': ' + msg.slice(0, 160) : ''));
+  }
   if (r.status === 429) throw new Error('Google limit reached for today');
   if (!r.ok) throw new Error('Google error ' + r.status);
   return r.json();
@@ -5188,6 +5201,114 @@ $('ppGo').onclick = () => {
 };
 $('ppStop').onclick = () => { if (PP.run) PP.run.stop = true; $('ppStop').textContent = 'Pausing…'; setTimeout(() => { $('ppStop').textContent = 'Pause'; }, 4000); };
 confirmTap($('ppDel'), async () => { await ppClear(); ppUi(); });
+/* ---------- import saved places from Google Takeout ---------- */
+function loadScript(src){ return new Promise((res, rej) => { if ([...document.scripts].some(x => x.src === src)) return res(); const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error("Couldn't load the unzip helper. Check your connection.")); document.head.appendChild(el); }); }
+function csvRows(text){
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++){
+    const ch = text[i];
+    if (q){ if (ch === '"'){ if (text[i + 1] === '"'){ cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ','){ row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r'){ if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += ch;
+  }
+  if (cur || row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+function coordsFromUrl(u){
+  u = decodeURIComponent(u || '');
+  let m = u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/); if (m) return [+m[1], +m[2]];
+  m = u.match(/[?&](?:q|query|ll)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/); if (m) return [+m[1], +m[2]];
+  m = u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/); if (m) return [+m[1], +m[2]];
+  return null;
+}
+const LIST_FROM_FILE = name => /favou?rite/i.test(name) ? 'favorites' : /want to go/i.test(name) ? 'want' : 'starred';
+// returns [{ kind:'label'|'list', list, label, name, sub, lat, lng, url }]
+function parseTakeoutFile(name, text){
+  const out = [], base = name.split('/').pop();
+  if (/\.json$/i.test(base)){
+    let j; try{ j = JSON.parse(text); }catch{ return out; }
+    const labeled = /label/i.test(base);
+    (j.features || []).forEach(f => {
+      const pp = f.properties || {}, loc = pp.Location || pp.location || {};
+      let lat = null, lng = null;
+      const g = loc['Geo Coordinates'];
+      if (g && +g.Latitude && +g.Longitude){ lat = +g.Latitude; lng = +g.Longitude; }
+      else if (f.geometry && f.geometry.coordinates && (+f.geometry.coordinates[0] || +f.geometry.coordinates[1])){ lng = +f.geometry.coordinates[0]; lat = +f.geometry.coordinates[1]; }
+      const url = pp['Google Maps URL'] || pp.google_maps_url || '';
+      if (lat == null){ const c = coordsFromUrl(url); if (c) [lat, lng] = c; }
+      const title = loc['Business Name'] || pp.Title || pp.name || loc.Address || pp.address || '';
+      const addr = loc.Address || pp.address || '';
+      if (!title && lat == null) return;
+      out.push(labeled ? { kind:'label', label:pp.name || title, name:addr && pp.name ? (addr.split(',')[0]) : title, sub:addr, lat, lng, url }
+                       : { kind:'list', list:'starred', name:title, sub:addr && addr !== title ? addr : '', lat, lng, url });
+    });
+  } else if (/\.csv$/i.test(base)){
+    const rows = csvRows(text); if (!rows.length) return out;
+    const head = rows[0].map(h => h.trim().toLowerCase());
+    const ti = head.indexOf('title'), ui = head.indexOf('url'), ni = head.indexOf('note');
+    const list = LIST_FROM_FILE(base);
+    rows.slice(1).forEach(r => {
+      const title = (r[ti >= 0 ? ti : 0] || '').trim(), url = (r[ui >= 0 ? ui : 2] || '').trim();
+      if (!title && !url) return;
+      const c = coordsFromUrl(url);
+      out.push({ kind:'list', list, name:title, sub:'', note:ni >= 0 ? (r[ni] || '').trim() : '', lat:c ? c[0] : null, lng:c ? c[1] : null, url });
+    });
+  }
+  return out;
+}
+async function locateImported(it){
+  if (it.lat != null) return true;
+  const q = [it.name, it.sub].filter(Boolean).join(', '); if (!q) return false;
+  try{
+    const hits = rankLocal(await photon(q, 3));
+    if (hits[0] && hits[0].dist < 400000){ it.lat = hits[0].lat; it.lng = hits[0].lng; it.sub = it.sub || hits[0].sub; it.approx = true; return true; }
+  }catch{}
+  return false;
+}
+async function importTakeout(files){
+  const status = t => { $('gmStatus').textContent = t; };
+  const docs = [];
+  status('Reading…');
+  for (const f of files){
+    if (/\.zip$/i.test(f.name) || f.type === 'application/zip'){
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+      const zip = await JSZip.loadAsync(f);
+      const names = Object.keys(zip.files).filter(n => /(Saved Places|Labeled places|label).*\.json$/i.test(n) || (/\/Saved\/.+\.csv$/i.test(n)) || /\.csv$/i.test(n) && /saved/i.test(n));
+      for (const n of names) docs.push([n, await zip.files[n].async('string')]);
+    } else docs.push([f.name, await f.text()]);
+  }
+  const items = docs.flatMap(([n, t]) => parseTakeoutFile(n, t));
+  if (!items.length){ status("Didn't find any saved places in that file. Make sure \"Maps (your places)\" and \"Saved\" were ticked in Takeout."); return; }
+  let added = 0, missed = 0, dup = 0, done = 0;
+  for (const it of items){
+    status(`Importing ${++done} of ${items.length}…`);
+    if (!(await locateImported(it))){ missed++; continue; }
+    const place = { id:`imp${it.lat.toFixed(5)},${it.lng.toFixed(5)}`, name:it.name || it.label || 'Saved place', sub:it.sub || '', lat:it.lat, lng:it.lng, cat:'', icon:'location_on' };
+    if (it.kind === 'label'){
+      const lb = (it.label || '').trim(), low = lb.toLowerCase();
+      if (low === 'home'){ if (saved.home && samePlace(saved.home, place)) dup++; else { saved.home = place; added++; } }
+      else if (low === 'work'){ if (saved.work && samePlace(saved.work, place)) dup++; else { saved.work = place; added++; } }
+      else if (saved.labels.some(l => samePlace(l.place, place) && l.label === lb)) dup++;
+      else { saved.labels = saved.labels.filter(l => l.label !== lb); saved.labels.push({ label:lb || place.name, place }); added++; }
+    } else {
+      const arr = saved.lists[it.list] || (saved.lists[it.list] = []);
+      if (arr.some(x => samePlace(x, place) || (x.name === place.name && hav([x.lat, x.lng], [place.lat, place.lng]) < 150))) dup++;
+      else { arr.push(place); added++; }
+    }
+    if (it.approx) await sleep(250); // go easy on the free search service
+  }
+  persistSaved();
+  status(`Imported ${added} place${added === 1 ? '' : 's'}${dup ? `, ${dup} already saved` : ''}${missed ? `, ${missed} couldn't be found` : ''}. Find them in the Saved tab.`);
+  toast(`Imported ${added} places from Google`);
+  if (curView() === 'saved' || curView() === 'explore') render();
+}
+$('gmFile').addEventListener('change', async () => {
+  const files = [...($('gmFile').files || [])]; $('gmFile').value = '';
+  if (!files.length) return;
+  try{ await importTakeout(files); }catch(e){ $('gmStatus').textContent = e.message || "Couldn't read that file"; }
+});
 /* fat-finger protection */
 KEY_FIELDS.forEach(([i, b]) => wireKey(i, b));
 confirmTap($('clearCache'), $('clearCache').onclick);
