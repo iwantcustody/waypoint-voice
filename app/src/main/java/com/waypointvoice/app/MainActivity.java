@@ -206,7 +206,14 @@ public class MainActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_FILE && fileCallback != null) {
-            fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
+            Uri[] picked = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            // some file pickers hand files back as a list (ClipData) instead of a single link
+            if ((picked == null || picked.length == 0) && resultCode == RESULT_OK && data != null && data.getClipData() != null) {
+                android.content.ClipData cd = data.getClipData();
+                picked = new Uri[cd.getItemCount()];
+                for (int k = 0; k < cd.getItemCount(); k++) picked[k] = cd.getItemAt(k).getUri();
+            }
+            fileCallback.onReceiveValue(picked);
             fileCallback = null;
         }
     }
