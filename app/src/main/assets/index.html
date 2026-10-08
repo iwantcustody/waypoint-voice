@@ -247,9 +247,16 @@ a.rowi{color:inherit}
 .bdist{font-size:30px;font-weight:500;line-height:1;font-variant-numeric:tabular-nums}
 .bstreet{font-size:21px;font-weight:500;margin-top:4px;line-height:1.2;overflow-wrap:anywhere}
 .btext{min-width:0}
-.lanes{background:var(--nav2);display:flex;justify-content:center;gap:2px;padding:6px 10px}
-.lanes .ms{font-size:28px;color:rgba(255,255,255,.35)}
+.lanes{background:var(--nav2);display:flex;justify-content:center;padding:6px 10px}
+.lanes .ln{display:grid;place-items:center;width:46px;height:46px}
+.lanes .ln + .ln{border-left:2px dashed rgba(255,255,255,.3)}
+.lanes .ms{font-size:38px;color:rgba(255,255,255,.3)}
 .lanes .ms.ok{color:#fff}
+.alertchip{display:flex;align-items:center;gap:8px;background:var(--surface);color:var(--ink);border-radius:14px;padding:8px 14px;box-shadow:var(--shadow);font-weight:500;font-size:15px;border-left:5px solid var(--amber)}
+.alertchip .ms{color:var(--amber)}
+.alertchip.cam{border-left-color:var(--blue)} .alertchip.cam .ms{color:var(--blue)}
+.alertchip.bad{border-left-color:var(--red)} .alertchip.bad .ms{color:var(--red)}
+.alertchip .ad{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
 .thenchip{background:var(--nav2);color:#fff;border-radius:0 0 12px 12px;margin-top:-6px;padding:8px 14px 6px;display:flex;align-items:center;gap:6px;font-weight:500;box-shadow:var(--shadow)}
 .thenchip .ms{font-size:22px}
 .navside{position:fixed;right:10px;z-index:480;display:flex;flex-direction:column;gap:10px}
@@ -301,6 +308,14 @@ a.rowi{color:inherit}
 .spage .seg button{padding:12px 6px}
 .spage .btnrow{gap:12px}
 .spage h3{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.spage h3.first{margin-top:0;padding-top:0;border-top:0}
+.charlist{margin:0 -20px}
+.charrow{padding-left:20px;padding-right:8px}
+.charrow.on{background:var(--blue-soft)}
+.charrow .chav{overflow:hidden;background:var(--surface2)}
+.charrow .chav img{width:100%;height:100%;object-fit:contain}
+.charrow .ibtn.confirm{background:var(--red);color:#fff;border-radius:50%}
+#carList .rowi{padding-left:0}
 .fld input.locked{color:var(--muted);background:var(--surface2)}
 details.adv{border:1px solid var(--line);border-radius:14px;margin-top:6px}
 details.adv summary{padding:14px 16px;font-weight:500;font-size:15px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
@@ -417,6 +432,7 @@ details.adv[open] summary::after{transform:rotate(180deg)}
 .ftx{display:grid}.ftx b{font-size:17px;font-weight:500}.ftx span{color:var(--green);font-size:14px}
 .fastercard .btnrow{justify-content:flex-end}
 .fbar{height:4px;margin:0 -16px;background:var(--surface2)}.fbar i{display:block;height:100%;width:100%;background:var(--green)}
+.fab.sharing{background:var(--green)!important;color:#fff!important}
 .askfab{background:var(--blue)!important;color:var(--blue-ink)!important}
 .askfab .ms{font-size:26px}
 .askcard{position:fixed;left:10px;right:10px;z-index:840;background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:14px 44px 14px 16px;display:grid;gap:8px;max-height:45vh;overflow:auto}
@@ -528,6 +544,7 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
     <div class="bmain"><span class="ms" id="bIcon">straight</span><div class="btext"><div class="bdist" id="bDist">—</div><div class="bstreet" id="bStreet">Waiting for GPS</div></div></div>
     <div class="lanes" id="lanes" hidden></div>
   </button>
+  <div class="alertchip" id="alertChip" hidden></div>
   <div class="thenchip" id="thenChip" hidden>Then <span class="ms" id="thenIc">turn_right</span></div>
   <span class="simpill" id="simPill" hidden>Test drive</span>
 </div>
@@ -535,6 +552,7 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
   <button class="fab" id="navCompass" aria-label="Toggle north up"><svg viewBox="0 0 30 30" width="30" height="30"><g id="needle2"><path d="M15 4l4 11h-8z" fill="#d93025"/><path d="M15 26l-4-11h8z" fill="#9aa0a6"/></g></svg></button>
   <button class="fab" id="navSound" aria-label="Mute voice"><span class="ms">volume_up</span></button>
   <button class="fab" id="navSearch" aria-label="Search along route"><span class="ms">search</span></button>
+  <button class="fab" id="navShare" aria-label="Share your trip live"><span class="ms">share_location</span></button>
   <button class="fab askfab" id="navAsk" aria-label="Talk to your navigator"><span class="ms fill">graphic_eq</span></button>
 </div>
 <div class="buddy" id="buddy" hidden role="button" aria-label="Talk to your navigator"><img id="buddyImg" alt=""></div>
@@ -666,11 +684,30 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
   </div>
 </div>
 
+<div class="modal" id="micModal" hidden>
+  <div class="panel" role="dialog" aria-labelledby="micTitle">
+    <header><h2 id="micTitle">Aux cable plugged in</h2><button class="ibtn" data-close="micModal" aria-label="Close"><span class="ms">close</span></button></header>
+    <div class="pgroup">
+      <div class="small">Which microphone should your buddy listen with? Car aux cables usually only carry sound <i>to</i> the car, so their mic hears nothing.</div>
+      <button class="pbtn primary big" id="micPhone" type="button"><span class="ms">smartphone</span>Phone's microphone</button>
+      <button class="pbtn outline big" id="micCable" type="button"><span class="ms">cable</span>The cable or headset mic</button>
+      <div class="small">You can change this later in Settings → Hands-free &amp; car.</div>
+    </div>
+  </div>
+</div>
+
 <!-- settings -->
 <div class="modal" id="settings" data-sticky="1" hidden>
   <div class="panel" role="dialog" aria-labelledby="setTitle">
     <header><button class="ibtn" id="setBack" aria-label="Back to settings" hidden><span class="ms">arrow_back</span></button><h2 id="setTitle">Settings</h2><button class="ibtn" id="closeSettings" aria-label="Close"><span class="ms">close</span></button></header>
     <div class="rows setmenu" id="setMenu"></div>
+
+    <div class="pgroup spage" data-page="characters" hidden>
+      <div class="small">Save your whole buddy as a character: name, voice and voice settings, pronouns, personality, custom lines, language, avatar art, wake phrase and theme. Switch between characters in one tap.</div>
+      <div class="rows charlist" id="charList"></div>
+      <div class="fld"><label for="charName">Save the current setup as a character</label>
+        <div class="inl"><input id="charName" type="text" autocomplete="off" placeholder="e.g. Saba"><button class="pbtn primary" id="charSave" type="button">Save</button></div></div>
+    </div>
 
     <div class="pgroup spage" data-page="profile" hidden>
       <div class="profrow">
@@ -797,6 +834,9 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
       <div class="fld"><label>Distance units</label><div class="seg" id="unitsSeg"><button type="button" data-v="imperial">Miles</button><button type="button" data-v="metric">Kilometers</button></div></div>
       <label class="check"><input type="checkbox" id="setHeading">Map turns with your direction while driving</label>
       <label class="check"><input type="checkbox" id="setSpeed">Show speedometer and speed limits</label>
+      <label class="check"><input type="checkbox" id="setCams">Speed camera alerts</label>
+      <label class="check"><input type="checkbox" id="setInc">Accident, closure, hazard and road work alerts (needs a TomTom key)</label>
+      <div class="small">Speed cameras come from OpenStreetMap, so coverage depends on what people have mapped. There's no free live source for police reports.</div>
 
     </div>
 
@@ -820,6 +860,28 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
         <div class="btnrow"><label class="pbtn outline" for="iconFile"><span class="ms">add_photo_alternate</span>Use my own picture</label><input type="file" id="iconFile" accept="image/*" hidden></div>
         <div class="small">The styles above replace the app icon (it can take a few seconds to update). Your own picture adds an extra home-screen icon, since Android doesn't let apps swap their main icon for a custom photo.</div>
       </div>
+    </div>
+
+    <div class="pgroup spage" data-page="handsfree" hidden>
+      <div class="small" id="hfWebNote" hidden>These features need the Android app.</div>
+      <h3 class="first">Wake phrase</h3>
+      <label class="check"><input type="checkbox" id="wakeOn">Listen for a wake phrase, so you don't have to tap</label>
+      <div class="fld"><label for="wakePhrase">Wake phrase</label><input id="wakePhrase" type="text" autocomplete="off" placeholder="hey Saba"></div>
+      <div class="small">Works while the app is open, and while navigating even with the screen off or another app on top. Listening for the phrase happens on your phone; nothing is sent anywhere until it hears it. Needs a one-time 40 MB download of offline speech.</div>
+      <div class="status" id="speechStatus"></div>
+      <h3>Microphone</h3>
+      <div class="fld"><label>When an aux cable or wired headset is plugged in, listen with</label>
+        <div class="seg" id="micSeg"><button type="button" data-v="ask">Ask me</button><button type="button" data-v="phone">Phone mic</button><button type="button" data-v="system">Cable mic</button></div>
+        <div class="small">Most car aux cables only send sound to the car, so their "microphone" hears nothing. Phone mic fixes that. It uses tone detection if you have a Gemini key, otherwise offline speech.</div></div>
+      <div class="small" id="routeNow"></div>
+      <h3>Car Bluetooth</h3>
+      <div class="small" id="carNow">No car picked yet.</div>
+      <div class="btnrow"><button class="pbtn outline" id="carPick" type="button"><span class="ms">bluetooth</span>Pick my car</button></div>
+      <div class="rows" id="carList"></div>
+      <label class="check"><input type="checkbox" id="carAuto">Open the app automatically when the car connects</label>
+      <div class="small" id="carAutoNote">Android needs "Display over other apps" for this; you'll be taken there once. Without it you get a tap-to-open notification instead.</div>
+      <h3>Offline speech</h3>
+      <div class="btnrow"><button class="pbtn outline danger" id="speechDel" type="button">Delete offline speech (40 MB)</button></div>
     </div>
 
     <div class="pgroup spage" data-page="data" hidden>
@@ -869,12 +931,12 @@ const S = {
   persona:(p => p === 'shark' ? 'chill' : p)(LS.get('persona','standard')), customLines:LS.get('customLines',{}), chatter:LS.get('chatter','some'), funFacts:LS.get('funFacts',true), speedWarn:LS.get('speedWarn',true),
   stab:LS.get('stab',0.55), sim:LS.get('sim',0.8), sty:LS.get('sty',0), spd:LS.get('spd',1), boost:LS.get('boost',true),
   theme:LS.get('theme','auto'), skin:LS.get('skin','google'), customColor:LS.get('customColor','#e0559b'), layer:LS.get('layer','default'), mode:LS.get('mode','car'),
-  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), pron:LS.get('pron','it'), buddySize:LS.get('buddySize','m'),
+  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), pron:LS.get('pron','it'), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
 Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -2829,6 +2891,12 @@ function pickedFromSearch(p){
 let recog = null;
 // One listener for both voice search and the assistant. Calls onText(text, isFinal) and onEnd(errorMessage|null).
 function listen(onText, onEnd){
+  wakeStop();
+  if (NATIVE && wantPhoneMic() && speechReady()){
+    window.__nativeVoice = t => onText(t, false);
+    window.__nativeClip = (wav, text, err) => { if (text) onText(text, true); onEnd(err ? err : text ? null : "Didn't catch that. Tap and try again."); };
+    NATIVE.recordClip(true, true); return true;
+  }
   if (NATIVE){
     window.__nativeVoice = (t, fin) => onText(t, !!fin);
     window.__nativeVoiceEnd = err => onEnd(err || null);
@@ -2845,7 +2913,7 @@ function listen(onText, onEnd){
   try{ recog.start(); }catch{ onEnd("Couldn't start the microphone"); return false; }
   return true;
 }
-function stopListening(){ try{ recog?.abort(); }catch{} if (NATIVE){ try{ NATIVE.stopVoice && NATIVE.stopVoice(); }catch{} } }
+function stopListening(){ try{ recog?.abort(); }catch{} if (NATIVE){ try{ NATIVE.stopVoice && NATIVE.stopVoice(); }catch{} try{ NATIVE.cancelClip && NATIVE.cancelClip(); }catch{} } }
 function startVoiceSearch(){
   $('sMic').classList.add('listening'); $('sInput').placeholder = 'Listening…';
   listen((t, fin) => { $('sInput').value = t; $('sClear').hidden = !t; if (fin) $('sInput').dispatchEvent(new Event('input')); },
@@ -2910,6 +2978,7 @@ Rules:
 - Only use web search when the answer depends on current or local info (events, hours, news, weather, prices, what's open). For general knowledge, trivia, history, math, opinions or chit-chat, answer directly without searching. If a search finds nothing, say so briefly.
 - Never suggest the driver look at or type on the phone. If something needs reading, say you'll leave it on screen for when they're stopped.
 - You can look things up and control the trip with tools: find_nearby (list places near the user or ahead on the route), navigate_to (start a trip or change the destination), add_stop, remove_stop, set_route_options (avoid highways/tolls/ferries), end_navigation. Prefer find_nearby over web search for "what's nearby" questions. When the user clearly asks for one of these, call the tool right away without asking for confirmation. Only ask a quick question if the request is truly ambiguous.
+- Gas prices: call find_nearby for gas (ahead on the route when navigating), then do one web search for current prices at those stations or in that town (GasBuddy is a good source). Name the cheapest one or two with price and distance, and offer to add it as a stop. If prices can't be found, say so and give the closest stations.
 - After a tool runs, confirm in one short sentence using what the tool reported (place name, how far, time added or arrival time). If a tool fails, say so briefly and suggest an alternative.
 Current time: ${now.toLocaleString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
 User location: ${place && place.city ? `near ${place.city}, ${place.region}` : 'unknown'}${st.pos ? ` (${st.pos.ll[0].toFixed(4)}, ${st.pos.ll[1].toFixed(4)})` : ''}. Speed about ${Math.round((st.pos?.spd || 0) * 2.237)} mph.
@@ -3277,12 +3346,23 @@ async function startAsk(followUp = false){
   if (ASK.state === 'thinking') return;
   if (ASK.state === 'listening'){ if (recCancel) recCancel(); stopListening(); closeAsk(); resumeMusic(); return; }
   stopVoice();
+  wakeStop();
   quietMusic();
   ASK.state = 'listening';
   askCard('listening', `<div class="askq">${ms('mic','fill')}<span id="askLive">${followUp ? 'Listening for a follow-up…' : 'Listening…'}</span>${toneAvailable() && !ASK.toneBroken ? '<span class="bars" id="askBars"><i></i><i></i><i></i><i></i><i></i></span>' : ''}</div>`);
   await sleep(followUp ? 150 : 350); // let the speaker and microphone settle before listening
   if (ASK.state !== 'listening') return;
-  if (toneAvailable() && !ASK.toneBroken){
+  if (wantPhoneMic()){
+    const useGem = !!(S.geminiKey && S.asstTone && !ASK.toneBroken);
+    if (useGem || speechReady()){
+      const heard = await phoneMicHear(useGem, followUp);
+      if (heard === 'done') return;
+    } else {
+      try{ NATIVE.downloadSpeech(); }catch{}
+      toast("Getting the phone mic ready (one-time 40 MB download). Using normal listening for now.", 5000);
+    }
+  }
+  if (toneAvailable() && !ASK.toneBroken && !wantPhoneMic()){
     try{
       const res = await recordUtterance((lv, voice) => { const b = $('askBars'); if (b) b.style.setProperty('--lv', String(lv)); const el = $('askLive'); if (el && voice && el.dataset.s !== '1'){ el.dataset.s = '1'; el.textContent = 'Got it… keep talking'; } });
       if (ASK.state !== 'listening') return;
@@ -3331,6 +3411,168 @@ async function startAsk(followUp = false){
   };
   go();
 }
+// Record with the phone's own mic (native), then Gemini (tone) or offline speech turns it into words
+function phoneMicHear(useGem, followUp){
+  return new Promise(resolve => {
+    const giveUp = msg => {
+      if (followUp){ closeAsk(); resumeMusic(); resolve('done'); return; }
+      ASK.state = 'idle'; askCard('error', `<div class="askmsg">${esc(msg)}</div>`); resumeMusic();
+      setTimeout(() => { if (ASK.state === 'idle') closeAsk(); }, 3500); resolve('done');
+    };
+    window.__nativeVoice = t => { const el = $('askLive'); if (el && t) el.textContent = t; };
+    window.__nativeClip = async (wav, text, err) => {
+      recCancel = null;
+      if (ASK.state !== 'listening') return resolve('done');
+      if (err){ toast(err, 4000); return resolve('fallback'); }
+      if (!wav) return giveUp("Didn't hear anything. Tap to try again.");
+      let q = text, delivery = '';
+      if (useGem){
+        askCard('listening', `<div class="askmsg"><span class="spin"></span>Understanding…</div>`);
+        try{
+          const bin = atob(wav), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+          const h = await geminiHear(new Blob([u8], { type:'audio/wav' }));
+          if (h.transcript){ q = h.transcript; delivery = h.delivery; }
+        }catch(e){ if (!q) toast(e.message || 'Voice understanding failed', 4000); }
+        if (ASK.state !== 'listening') return resolve('done');
+      }
+      if (!q) return giveUp("Didn't catch any words. Tap to try again.");
+      handleQuestion(q, delivery); resolve('done');
+    };
+    recCancel = () => { try{ NATIVE.cancelClip(); }catch{} };
+    NATIVE.recordClip(true, speechReady());
+  });
+}
+
+/* ---------- hands-free: wake phrase, microphone choice, aux and car ---------- */
+const HF = { audio:{}, speech:'none', wakeActive:false, wakeErrT:0, micAsked:false, auxToast:false };
+function speechReady(){ return HF.speech === 'ready'; }
+function wakePhrase(){ return (S.wakePhrase || '').trim() || `hey ${assistantName()}`; }
+// Use the phone's own mic when a cable/headset mic is plugged in and you said so (or haven't answered yet)
+function wantPhoneMic(){
+  if (!NATIVE || !NATIVE.recordClip) return false;
+  return !!HF.audio.auxMic && S.micPref !== 'system';
+}
+function lev(a, b){
+  const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length:n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++){
+    const cur = [i];
+    for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[n];
+}
+const sim = (a, b) => 1 - lev(a, b) / Math.max(a.length, b.length, 1);
+const skel = w => w.replace(/(.)\1+/g, '$1').replace(/[aeiouy]/g, '');
+const GREET = ['hey','hay','hi','a','eh','okay','ok','yo','hello'];
+function wordsOf(t){ return String(t || '').toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').replace(/'/g, '').split(/\s+/).filter(Boolean); }
+function matchWake(text){
+  const P = wordsOf(wakePhrase()), W = wordsOf(text);
+  if (!P.length || W.length < P.length) return false;
+  for (let s0 = 0; s0 + P.length <= W.length; s0++){
+    let ok = true;
+    for (let k = 0; k < P.length && ok; k++){
+      const p = P[k], w = W[s0 + k];
+      if (GREET.includes(p)) ok = GREET.includes(w) || sim(p, w) >= 0.6;
+      else ok = sim(p, w) >= 0.65 || (p.length >= 4 && skel(p) === skel(w));
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+function wakeShould(){
+  return !!(NATIVE && NATIVE.startWake && S.wakeOn && S.claudeKey && ASK.state === 'idle' && $('askCard').hidden
+    && !$('sMic').classList.contains('listening') && Date.now() - HF.wakeErrT > 15000);
+}
+function wakeStart(){ if (HF.wakeActive || !wakeShould()) return; HF.wakeActive = true; try{ NATIVE.startWake(wantPhoneMic()); }catch{ HF.wakeActive = false; } }
+function wakeStop(){ if (!HF.wakeActive) return; HF.wakeActive = false; try{ NATIVE.stopWake(); }catch{} }
+function wakeRestart(){ wakeStop(); wakeStart(); }
+setInterval(() => { if (wakeShould()) wakeStart(); else wakeStop(); }, 1500);
+window.__nativeWake = (text, fin) => {
+  if (!HF.wakeActive || playing) return;
+  if (matchWake(text)){
+    wakeStop();
+    try{ navigator.vibrate && navigator.vibrate(40); }catch{}
+    startAsk();
+  }
+};
+window.__nativeWakeError = msg => { HF.wakeActive = false; HF.wakeErrT = Date.now(); speechStatusText(/permission/i.test(msg || '') ? 'Allow the microphone to use the wake phrase.' : "Couldn't listen for the wake phrase right now. Trying again soon."); };
+function speechStatusText(t, err){ const el = $('speechStatus'); if (el){ el.textContent = t; el.className = 'status' + (err ? ' err' : ''); } }
+function showSpeechStatus(){
+  if (!NATIVE || !NATIVE.speechStatus) return;
+  const st_ = HF.speech;
+  speechStatusText(st_ === 'ready' ? (S.wakeOn ? `Listening for "${wakePhrase()}" whenever the app is open.` : 'Offline speech is ready.')
+    : /^\d+%$/.test(st_) ? `Downloading offline speech… ${st_}` : st_ === 'loading' ? 'Loading offline speech…'
+    : st_.startsWith('error:') ? 'Download failed. Check your connection and try again.' : st_ === 'downloaded' ? 'Offline speech downloaded.' : '', st_.startsWith('error:'));
+  $('speechDel').hidden = !(st_ === 'ready' || st_ === 'downloaded');
+}
+window.__nativeModel = status => { HF.speech = status; showSpeechStatus(); if (status === 'ready') wakeRestart(); };
+function syncRouteNote(){
+  const a = HF.audio, el = $('routeNow'); if (!el) return;
+  el.textContent = !NATIVE ? '' : a.auxMic ? `Plugged in now: ${a.auxName || 'cable/headset'} (has a mic). Listening with ${wantPhoneMic() ? 'the phone mic' : 'the cable mic'}.`
+    : a.aux ? 'Plugged in now: aux cable without a mic, so the phone mic is used automatically.' : a.bt ? `Bluetooth audio: ${a.btName}.` : '';
+}
+window.__nativeAudioRoute = r => {
+  const prev = HF.audio; HF.audio = r || {};
+  if (HF.audio.auxMic && !prev.auxMic && S.micPref === 'ask'){ openModal('micModal'); }
+  if (HF.audio.aux && !HF.audio.auxMic && !prev.aux && !HF.auxToast){ HF.auxToast = true; toast("Aux connected. Your phone's mic is used for talking."); }
+  if (!!HF.audio.auxMic !== !!prev.auxMic) wakeRestart();
+  syncRouteNote();
+};
+function setMicPref(v){ S.micPref = v; save(); syncSeg('micSeg', v); syncRouteNote(); wakeRestart(); }
+$('micPhone').onclick = () => { closeModal('micModal'); setMicPref('phone'); if (!S.geminiKey && !speechReady()){ try{ NATIVE.downloadSpeech(); }catch{} toast('Getting the phone mic ready (one-time 40 MB download)', 4000); } };
+$('micCable').onclick = () => { closeModal('micModal'); setMicPref('system'); };
+document.querySelectorAll('#micSeg button').forEach(b => b.onclick = () => setMicPref(b.dataset.v));
+window.__nativeCarConnected = name => { toast(`Connected to ${name}`, 3500); setTimeout(wakeStart, 1500); };
+$('wakeOn').onchange = () => {
+  S.wakeOn = $('wakeOn').checked; save();
+  if (S.wakeOn){
+    if (!S.claudeKey) toast('Add a Claude key in Settings → Assistant too, so your buddy can answer', 5000);
+    if (!speechReady()){ try{ NATIVE.downloadSpeech(); }catch{} }
+  } else wakeStop();
+  showSpeechStatus();
+};
+$('wakePhrase').addEventListener('change', () => { S.wakePhrase = $('wakePhrase').value.trim(); save(); $('wakePhrase').placeholder = `hey ${assistantName()}`; showSpeechStatus(); });
+function speechDelInit(){ confirmTap($('speechDel'), () => { wakeStop(); try{ NATIVE.deleteSpeech(); }catch{} HF.speech = 'none'; S.wakeOn = false; save(); $('wakeOn').checked = false; showSpeechStatus(); toast('Offline speech deleted'); }); }
+// car Bluetooth
+function syncCar(){
+  $('carNow').textContent = S.carName ? `My car: ${S.carName}` : 'No car picked yet.';
+  $('carAuto').checked = S.carAuto;
+  const needs = S.carAuto && NATIVE && NATIVE.canDrawOverlays && !NATIVE.canDrawOverlays();
+  $('carAutoNote').textContent = needs ? 'Turn on "Display over other apps" for Waypoint Voice, then come back.' : 'Android needs "Display over other apps" for this; you\'ll be taken there once. Without it you get a tap-to-open notification instead.';
+  if (NATIVE && NATIVE.setCar) NATIVE.setCar(S.carAddr, S.carName, !!S.carAuto);
+}
+function pickCar(){
+  if (!NATIVE || !NATIVE.listBtDevices){ toast('Install the newest app build to use car Bluetooth', 4500); return; }
+  const r = NATIVE.listBtDevices();
+  if (r === 'need-permission'){ window.__nativeBtReady = ok => { if (ok) pickCar(); else toast('Allow "Nearby devices" so the app can see your car'); }; return; }
+  let list = []; try{ list = JSON.parse(r); }catch{}
+  if (!list.length){ $('carList').innerHTML = '<div class="small">No paired Bluetooth devices. Pair your car in Android settings first.</div>'; return; }
+  $('carList').innerHTML = list.map((d, i) => `<button type="button" class="rowi" data-i="${i}"><span class="ic">${ms(d.addr === S.carAddr ? 'check_circle' : 'bluetooth')}</span><span class="tx"><div class="t">${esc(d.name)}</div></span></button>`).join('');
+  $('carList').querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const d = list[+b.dataset.i]; S.carAddr = d.addr; S.carName = d.name; save(); $('carList').innerHTML = ''; syncCar(); toast(`${d.name} set as your car`); });
+}
+$('carPick').onclick = pickCar;
+$('carAuto').onchange = () => {
+  S.carAuto = $('carAuto').checked; save();
+  if (S.carAuto && !S.carName) toast('Pick your car too');
+  if (S.carAuto && NATIVE && NATIVE.canDrawOverlays && !NATIVE.canDrawOverlays()) NATIVE.openOverlaySettings();
+  syncCar();
+};
+function syncHandsFree(){
+  $('hfWebNote').hidden = !!NATIVE;
+  $('wakeOn').checked = S.wakeOn; $('wakePhrase').value = S.wakePhrase; $('wakePhrase').placeholder = `hey ${assistantName()}`;
+  syncSeg('micSeg', S.micPref); syncRouteNote(); syncCar();
+  if (NATIVE && NATIVE.speechStatus){ const s_ = NATIVE.speechStatus(); if (s_ !== 'downloading' && HF.speech !== 'ready') HF.speech = s_; }
+  showSpeechStatus();
+}
+// at startup: what's plugged in, and load offline speech if it's already downloaded
+setTimeout(() => {
+  if (!NATIVE || !NATIVE.getAudioRoute) return;
+  try{ window.__nativeAudioRoute(JSON.parse(NATIVE.getAudioRoute())); }catch{}
+  try{ const s_ = NATIVE.speechStatus(); HF.speech = s_; if (s_ === 'downloaded') NATIVE.downloadSpeech(); }catch{}
+  if (S.carName) syncCar();
+}, 1200);
+
 async function handleQuestion(q, delivery = ''){
   if (ASK.state !== 'listening') return;
   q = (q || '').trim(); if (!q) return;
@@ -3566,9 +3808,13 @@ function startNav(dir, sim, opts = {}){
   }
   if (st.pos) navTick();
   setTimeout(placeFabs, 50);
+  routeExtras(n);
 }
 function endNav(arrived){
   const n = st.nav;
+  $('alertChip').hidden = true;
+  if (n && n.share && !n.share.stopped){ publishShare(n, 0, 0, arrived ? 'arrived' : 'ended'); n.share.stopped = true; }
+  $('navShare').classList.remove('sharing');
   if (n?.sim) clearInterval(n.sim.timer);
   try{ st.wake?.release(); }catch{} st.wake = null;
   if (NATIVE) NATIVE.navEnded();
@@ -3646,6 +3892,7 @@ function applyNewRoute(n, route){
   st.nav = n2;
   drawRouteLines([route], 0, null, true);
   n2.announced[0] = { far:1, mid:1, now:1 };
+  n2.alertDone = n.alertDone; n2.share = n.share; setTimeout(() => routeExtras(n2), 0);
   n2.startT = n.startT; n2.halfDone = n.halfDone; n2.lastChat = n.lastChat; n2.lastSpeedWarn = n.lastSpeedWarn; n2.lastBetter = Date.now();
   if (n.sim){ // keep test drive going on the new route
     n2.sim = { along:0, seg:0, speed:n.sim.speed, timer:null };
@@ -3741,9 +3988,10 @@ function navTick(){
     const note = `${fmtDist(d)} · ${step.maneuver.type === 'arrive' ? street : instruction(step)}`;
     if (note !== n._note && (!n._noteT || Date.now() - n._noteT > 4000 || i !== n._noteI)){ n._note = note; n._noteT = Date.now(); n._noteI = i; NATIVE.navUpdate(note); }
   }
-  const lanes = (step.intersections?.[0]?.lanes || []);
-  if (lanes.length > 1 && d < 1700){
-    $('lanes').innerHTML = lanes.map(l => `<span class="ms ${l.valid ? 'ok' : ''}">${modIcon((l.indications || ['straight']).find(x => x !== 'none') || 'straight')}</span>`).join('');
+  const lanes = (step.intersections?.[0]?.lanes?.length ? step.intersections[0].lanes : step._lanes) || [];
+  if (lanes.length > 1 && d < 1700 && step.maneuver.type !== 'arrive'){
+    const laneIc = l => modIcon((l.valid && l.valid_indication && l.valid_indication !== 'none') ? l.valid_indication : ((l.indications || ['straight']).find(x => x !== 'none') || 'straight'));
+    $('lanes').innerHTML = lanes.map(l => `<span class="ln"><span class="ms ${l.valid ? 'ok' : ''}">${laneIc(l)}</span></span>`).join('');
     $('lanes').hidden = false;
   } else $('lanes').hidden = true;
   let j = i + 1; while (j < n.steps.length && n.steps[j]._skip) j++;
@@ -3775,6 +4023,9 @@ function navTick(){
   else if (!a.mid && d <= th.mid && d > th.mid * 0.6 && d > th.now + 30){ a.mid = a.far = 1; say(ph.mid); }
   else if (!a.far && d <= th.far && d > th.far * 0.75 && d > th.mid + 100 && legLen > th.far * 0.9){ a.far = 1; say(ph.far); }
   else extrasTick(n, p, pr, d, th, left, secs);
+  alertTick(n, pr);
+  shareTick(n, pr, left, secs);
+  { const k = ['lanes','alertChip','thenChip'].map(id => $(id).hidden ? 0 : 1).join('') + $('bStreet').offsetHeight; if (k !== n._topKey){ n._topKey = k; placeFabs(); } }
 
   // camera
   if (st.follow){
@@ -3782,6 +4033,158 @@ function navTick(){
     map.setView(st.pos.ll, Math.max(map.getZoom(), p.mode === 'walk' ? 18 : 17), { animate:true, duration:0.8 });
   }
   updateMeCone();
+}
+/* ---------- route alerts: speed cameras (OpenStreetMap) and live incidents (TomTom) ---------- */
+// Splits the route into ~20 km pieces with a box around each, for map queries
+function routeBoxes(n, fromAlong = 0, toAlong = Infinity, pieceM = 20000){
+  const out = []; let box = null, startA = null;
+  for (let i = 0; i < n.coords.length; i++){
+    const a = n.cum[i]; if (a < fromAlong - 500) continue; if (a > toAlong) break;
+    const [la, lo] = n.coords[i];
+    if (!box){ box = [la, lo, la, lo]; startA = a; }
+    box = [Math.min(box[0], la), Math.min(box[1], lo), Math.max(box[2], la), Math.max(box[3], lo)];
+    if (a - startA > pieceM){ out.push(box); box = [la, lo, la, lo]; startA = a; }
+  }
+  if (box) out.push(box);
+  return out.map(b => [b[0] - 0.004, b[1] - 0.005, b[2] + 0.004, b[3] + 0.005]);
+}
+async function cameraAlerts(n){
+  const boxes = routeBoxes(n);
+  const q = `[out:json][timeout:20];(${boxes.map(b => `node["highway"="speed_camera"](${b.map(v => v.toFixed(4)).join(',')});`).join('')});out 300;`;
+  const j = await overpass(q, 20000);
+  const found = [];
+  (j.elements || []).forEach(e => {
+    const pr = projectOn(n, [e.lat, e.lon], false);
+    if (pr && pr.dist < 35) found.push({ id:'cam' + e.id, along:pr.along, kind:'cam', icon:'photo_camera',
+      text:'Speed camera' + (e.tags && e.tags.maxspeed ? `, ${e.tags.maxspeed.replace(/\s*mph/, '')} limit` : ''), warnAt:0 });
+  });
+  return found;
+}
+const INC = { 1:['Accident', 'car_crash', 'bad'], 3:['Hazard', 'warning', ''], 5:['Ice on the road', 'ac_unit', 'bad'], 7:['Lane closed', 'remove_road', ''], 8:['Road closed', 'block', 'bad'],
+  9:['Road work', 'construction', ''], 11:['Flooding', 'flood', 'bad'], 14:['Broken-down vehicle', 'car_repair', ''] };
+async function incidentAlerts(n, fromAlong = 0, toAlong = 160000){
+  const boxes = routeBoxes(n, fromAlong, fromAlong + toAlong, 40000).slice(0, 6);
+  const fields = encodeURIComponent('{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,events{description},delay}}}');
+  const found = [];
+  await Promise.all(boxes.map(async b => {
+    const url = `https://api.tomtom.com/traffic/services/5/incidentDetails?key=${encodeURIComponent(S.ttKey.trim())}&bbox=${b[1].toFixed(5)},${b[0].toFixed(5)},${b[3].toFixed(5)},${b[2].toFixed(5)}&fields=${fields}&language=en-US&timeValidityFilter=present`;
+    try{
+      const r = await fetchTimeout(url, 12000); if (!r.ok) return;
+      const j = await r.json();
+      (j.incidents || []).forEach(inc => {
+        const pp = inc.properties || {}, meta = INC[pp.iconCategory]; if (!meta) return;
+        const g = inc.geometry || {}, cs = g.type === 'Point' ? [g.coordinates] : (g.coordinates || []);
+        if (!cs.length) return;
+        const a = projectOn(n, [cs[0][1], cs[0][0]], false); if (!a || a.dist > 35) return;
+        if (cs.length > 1){ // must run the same way we're driving, not the other side of the freeway
+          const z = projectOn(n, [cs[cs.length - 1][1], cs[cs.length - 1][0]], false);
+          if (!z || z.dist > 35 || z.along < a.along) return;
+        }
+        const desc = pp.events?.[0]?.description || meta[0];
+        found.push({ id:'inc' + (pp.id || cs[0].join(',')), along:a.along, kind:'inc', icon:meta[1], cls:meta[2], label:meta[0],
+          text:desc, delay:pp.delay || 0 });
+      });
+    }catch{}
+  }));
+  return found;
+}
+async function loadAlerts(n, incOnly = false){
+  if (n.plan.mode !== 'car') return;
+  n.alertDone = n.alertDone || new Set();
+  const keep = (n.alerts || []).filter(a => incOnly ? a.kind !== 'inc' : false);
+  const jobs = [];
+  if (!incOnly && S.camAlerts) jobs.push(cameraAlerts(n).catch(() => []));
+  if (S.incAlerts && hasTT()){ const pr = st.pos ? projectOn(n, st.pos.ll, false) : null; jobs.push(incidentAlerts(n, pr ? pr.along : 0).catch(() => [])); }
+  const res = (await Promise.all(jobs)).flat();
+  if (st.nav !== n) return;
+  const seen = new Set(); n.alerts = [...keep, ...res].filter(a => !seen.has(a.id) && seen.add(a.id)).sort((a, b) => a.along - b.along);
+  n.alertsT = Date.now();
+}
+// Lane arrows: TomTom doesn't send lanes, so borrow them from the free router at the same turns
+async function borrowLanes(n){
+  if (!n.route._tt || n.plan.mode !== 'car') return;
+  const pts = [n.coords[0]]; let acc = 0;
+  for (let i = 1; i < n.coords.length - 1; i++){ acc += n.cum[i] - n.cum[i - 1]; if (acc > 6000){ pts.push(n.coords[i]); acc = 0; } }
+  pts.push(n.coords[n.coords.length - 1]);
+  while (pts.length > 40) for (let i = 1; i < pts.length - 1; i++) pts.splice(i, 1);
+  let r; try{ [r] = await osrmRoutes(pts, 'car', false); }catch{ return; }
+  if (!r || st.nav !== n) return;
+  const lanes = [];
+  r.legs.forEach(l => l.steps.forEach(s_ => (s_.intersections || []).forEach(x => { if (x.lanes && x.lanes.length > 1) lanes.push({ ll:[x.location[1], x.location[0]], lanes:x.lanes }); })));
+  n.steps.forEach(s_ => {
+    if (!s_.maneuver || !s_.maneuver.location) return;
+    const ll = [s_.maneuver.location[1], s_.maneuver.location[0]];
+    let best = null, bd = 40;
+    lanes.forEach(x => { const d = hav(ll, x.ll); if (d < bd){ bd = d; best = x; } });
+    if (best) s_._lanes = best.lanes;
+  });
+}
+function routeExtras(n){ loadAlerts(n).catch(() => {}); borrowLanes(n).catch(() => {}); }
+function alertDist(m){
+  if (S.units === 'metric') return m < 900 ? `${Math.round(m / 100) * 100} meters` : `${(m / 1000).toFixed(m < 9500 ? 1 : 0).replace(/\.0$/, '')} kilometers`;
+  const mi = m / 1609.34; return mi < 0.35 ? 'a quarter mile' : mi < 0.75 ? 'half a mile' : mi < 1.4 ? 'a mile' : mi < 2.3 ? '2 miles' : `${Math.round(mi)} miles`;
+}
+function alertTick(n, pr){
+  const chip = $('alertChip');
+  if (!n.alerts || !n.alerts.length){ chip.hidden = true; return; }
+  if (S.incAlerts && hasTT() && Date.now() - (n.alertsT || 0) > 300000){ n.alertsT = Date.now(); loadAlerts(n, true).catch(() => {}); }
+  const spd = Math.max(st.pos.spd || 0, 8);
+  let shown = null;
+  for (const a of n.alerts){
+    const ahead = a.along - pr.along;
+    if (ahead < -30) continue;
+    const range = a.kind === 'cam' ? Math.max(350, spd * 25) : 3200;
+    if (ahead > range) break;
+    if (!shown) shown = { a, ahead };
+    if (!n.alertDone.has(a.id) && ahead > (a.kind === 'cam' ? 60 : 250) && !playing && !queue.length){
+      n.alertDone.add(a.id);
+      const where = ahead > 400 ? ` in ${alertDist(ahead)}` : ' ahead';
+      say(a.kind === 'cam' ? `Speed camera${where}${a.text.includes(',') ? ',' + a.text.split(',')[1] : ''}.` : `${a.label}${where}.${a.delay > 120 ? ` About ${Math.round(a.delay / 60)} minutes of delay.` : ''}`, false, a.kind === 'cam' ? null : 'worried');
+    }
+  }
+  if (!shown){ chip.hidden = true; return; }
+  chip.className = 'alertchip ' + (shown.a.kind === 'cam' ? 'cam' : (shown.a.cls || ''));
+  chip.innerHTML = `${ms(shown.a.icon)}<span>${esc(shown.a.kind === 'cam' ? shown.a.text : shown.a.label)}</span><span class="ad">${shown.ahead > 30 ? fmtDist(shown.ahead) : 'Here'}</span>`;
+  chip.hidden = false;
+}
+/* ---------- live trip sharing: friends open a link and watch your ETA (via the free ntfy.sh relay) ---------- */
+function shareBase(){
+  if (/github\.io$/.test(location.hostname)){ const b = new URL('share.html', location.origin + location.pathname).href; LS.set('siteBase', b); return b; }
+  return LS.get('siteBase', '') || (location.protocol === 'file:' ? new URL('share.html', location.href).href : '');
+}
+function newTopic(){ const a = new Uint8Array(16); crypto.getRandomValues(a); return 'wv' + [...a].map(x => x.toString(36).padStart(2, '0')).join('').slice(0, 24); }
+function publishShare(n, left, secs, done = ''){
+  const sh = n.share; if (!sh) return;
+  const p = n.plan, ll = st.pos ? st.pos.ll : n.coords[0];
+  const msg = { v:1, who:(LS.get('profName', '') || '').trim() || 'Your friend', lat:+ll[0].toFixed(5), lng:+ll[1].toFixed(5),
+    dest:p.dest.name, dlat:+p.dest.lat.toFixed(5), dlng:+p.dest.lng.toFixed(5), eta:Math.round(Date.now() + secs * 1000), left:Math.round(left),
+    units:S.units, t:Date.now(), done };
+  sh.lastT = Date.now();
+  fetchTimeout(`https://ntfy.sh/${sh.topic}`, 10000, { method:'POST', body:JSON.stringify(msg) }).catch(() => {});
+}
+function shareTick(n, pr, left, secs){
+  const sh = n.share; if (!sh || sh.stopped) return;
+  if (Date.now() - sh.startT > 4 * 3600000){ stopShare(n); return; }
+  if (Date.now() - sh.lastT >= 60000) publishShare(n, left, secs);
+}
+function startShare(n){
+  const base = shareBase();
+  if (!base){ toast("Sharing needs the app's website. Open the app once while online, then try again.", 5000); return; }
+  n.share = { topic:newTopic(), lastT:0, startT:Date.now(), stopped:false };
+  const pr = st.pos ? projectOn(n, st.pos.ll, false) : null, left = pr ? n.total - pr.along : n.total;
+  const secs = n.live ? n.live.secs * (left / n.live.left) : n.route.duration * (left / n.total);
+  publishShare(n, left, secs);
+  const link = `${base}#${n.share.topic}`, text = `Follow my drive to ${n.plan.dest.name} live: ${link}`;
+  $('navShare').classList.add('sharing');
+  if (NATIVE && NATIVE.share) NATIVE.share(text);
+  else if (navigator.share) navigator.share({ text }).catch(() => {});
+  else { try{ navigator.clipboard.writeText(link); toast('Link copied'); }catch{ toast(link, 8000); } }
+  toast('Sharing your trip. Tap the share button again to stop.', 4000);
+}
+function stopShare(n){
+  if (!n.share || n.share.stopped) return;
+  publishShare(n, 0, 0, 'stopped'); n.share.stopped = true;
+  $('navShare').classList.remove('sharing'); toast('Stopped sharing');
 }
 async function fetchLimit(ll){
   try{
@@ -4002,6 +4405,7 @@ function viewStats(){
 
 /* ---------- search along route ---------- */
 $('navAsk').onclick = () => startAsk();
+$('navShare').onclick = () => { const n = st.nav; if (!n) return; if (n.share && !n.share.stopped) stopShare(n); else startShare(n); };
 $('buddy').onclick = () => startAsk();
 $('navSearch').onclick = () => {
   $('alongChips').innerHTML = CATS.filter(c => ['gas','food','coffee','grocery','restroom','ev','parking','pharmacy'].includes(c.id)).map(c => `<button class="chip" data-cat="${c.id}">${ms(c.icon)}${c.label}</button>`).join('');
@@ -4102,7 +4506,7 @@ function drawMedia(){
   row.hidden = false;
 }
 window.__nativeMedia = o => { media = o; drawMedia(); placeFabs(); };
-window.__nativeResume = () => { if (NATIVE && NATIVE.hasMediaAccess()) NATIVE.startMedia(); drawMedia(); placeFabs(); };
+window.__nativeResume = () => { if (!$('settings').hidden) syncCar(); if (NATIVE && NATIVE.hasMediaAccess()) NATIVE.startMedia(); drawMedia(); placeFabs(); };
 if (NATIVE && NATIVE.hasMediaAccess()) NATIVE.startMedia();
 
 /* ---------- long-press to drop a pin ---------- */
@@ -4114,10 +4518,12 @@ map.on('contextmenu', e => {
 
 /* ================= settings ================= */
 const SET_PAGES = [
+  { id:'characters', icon:'theater_comedy', title:'Characters', sub:() => CHARS.list.length ? `${CHARS.list.find(c => c.id === LS.get('activeChar', ''))?.name || 'Custom setup'} · ${CHARS.list.length} saved` : 'Save and switch whole buddy setups' },
   { id:'profile', icon:'account_circle', title:'Profile', sub:() => LS.get('profName', '') || 'Name and photo' },
   { id:'voice', icon:'record_voice_over', title:'Voice', sub:() => !S.key ? 'Not set up yet' : S.voiceName || (S.voiceId ? 'Custom voice' : 'Pick a voice') },
   { id:'personality', icon:'mood', title:'Personality', sub:() => (S.persona === 'chill' ? 'Chill' : 'Standard') + ' · chatter ' + ({ off:'off', some:'some', chatty:'chatty' })[S.chatter] },
   { id:'assistant', icon:'graphic_eq', title:'Assistant', sub:() => !S.claudeKey ? 'Off, needs a Claude key' : `${assistantName()} · ${titleCase(S.vibe)}${S.geminiKey && S.asstTone ? ' · tone on' : ''}` },
+  { id:'handsfree', icon:'directions_car', title:'Hands-free & car', sub:() => !NATIVE ? 'Android app only' : [S.wakeOn ? `"${wakePhrase()}"` : 'Wake phrase off', S.carName ? S.carName : ''].filter(Boolean).join(' · ') },
   { id:'buddy', icon:'face', title:'Buddy avatar', sub:() => !Buddy.ready() ? 'No art yet' : !S.buddyOn ? 'Hidden' : S.buddyAlways ? 'Always on the map' : 'While navigating' },
   { id:'traffic', icon:'traffic', title:'Live traffic', sub:() => hasTT() ? 'On' : 'Off, needs a TomTom key' },
   { id:'navigation', icon:'navigation', title:'Navigation', sub:() => (S.units === 'metric' ? 'Kilometers' : 'Miles') + (S.headingUp ? ' · map turns with you' : '') },
@@ -4125,6 +4531,69 @@ const SET_PAGES = [
   { id:'data', icon:'storage', title:'Storage & history', sub:() => 'Offline maps, search history, saved audio' }
 ];
 let setPage = null;
+/* ---------- characters: whole buddy setups you can switch between ---------- */
+const CHAR_KEYS = ['asstName','pron','voiceId','voiceName','model','stab','sim','sty','spd','boost','persona','customLines','chatter','vibe','skin','customColor','buddySize','buddyOn','wakePhrase'];
+const CHARS = { list:[] };
+const IDB = (() => {
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('wv', 1);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('chars')) r.result.createObjectStore('chars', { keyPath:'id' }); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const run = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('chars', mode); const req = fn(t.objectStore('chars')); t.oncomplete = () => res(req && 'result' in req ? req.result : undefined); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error); }); };
+  return { all:() => run('readonly', st_ => st_.getAll()), put:c => run('readwrite', st_ => st_.put(c)), del:id => run('readwrite', st_ => st_.delete(id)) };
+})();
+async function loadChars(){ try{ CHARS.list = ((await IDB.all()) || []).sort((a, b) => a.name.localeCompare(b.name)); }catch{ CHARS.list = []; } return CHARS.list; }
+function snapshotChar(name, id){
+  const o = {}; CHAR_KEYS.forEach(k => o[k] = JSON.parse(JSON.stringify(S[k] ?? null)));
+  return { id: id || ('c' + Date.now().toString(36)), name, saved:Date.now(), s:o, frames:{ ...Buddy.frames() } };
+}
+async function useChar(c){
+  readVoiceFields();
+  CHAR_KEYS.forEach(k => { if (c.s && k in c.s) S[k] = c.s[k]; });
+  save(); memCache.clear(); voiceErrShown = false;
+  Buddy.save(c.frames || {});
+  LS.set('activeChar', c.id);
+  applyTheme(); applyBuddySize(); applyPronouns(); syncSliders();
+  $('apiKey').value = S.key; $('voiceId').value = S.voiceId; $('model').value = S.model; $('persona').value = S.persona;
+  syncSeg('chatterSeg', S.chatter); syncVibe(); syncSeg('pronSeg', S.pron);
+  renderChars(); renderBuddySlots(); wakeRestart(); prefetchAcks();
+  toast(`Switched to ${c.name}`);
+  if (hasVoice()) say(S.persona === 'standard' ? `Hi, it's ${assistantName()}.` : `Hey... it's ${assistantName()}.`, true, 'happy');
+}
+function renderChars(){
+  const act = LS.get('activeChar', '');
+  $('charList').innerHTML = CHARS.list.length ? CHARS.list.map((c, i) => `<div class="rowi charrow ${c.id === act ? 'on' : ''}" data-i="${i}" role="button" tabindex="0">
+      <span class="ic chav">${c.frames && c.frames.closed ? `<img src="${c.frames.closed}" alt="">` : ms('face')}</span>
+      <span class="tx"><div class="t">${esc(c.name)}</div><div class="s">${c.id === act ? 'Active · ' : ''}${esc((c.s.voiceName || 'No voice').replace(/\s*\(yours\)$/, ''))}${c.s.pron && c.s.pron !== 'it' ? ' · ' + ({ she:'she/her', he:'he/him', they:'they/them' })[c.s.pron] : ''}</div></span>
+      <button type="button" class="ibtn" data-up="${i}" aria-label="Update ${esc(c.name)} with the current setup">${ms('save')}</button>
+      <button type="button" class="ibtn" data-del="${i}" aria-label="Delete ${esc(c.name)}">${ms('delete')}</button></div>`).join('')
+    : '<div class="small">No characters yet. Set up a voice, name, art and personality, then save it below.</div>';
+  $('charList').querySelectorAll('.charrow').forEach(r => r.onclick = e => { if (e.target.closest('button')) return; useChar(CHARS.list[+r.dataset.i]); });
+  $('charList').querySelectorAll('[data-up]').forEach(b => confirmTap(b, async () => {
+    const c = CHARS.list[+b.dataset.up];
+    try{ await IDB.put(snapshotChar(c.name, c.id)); LS.set('activeChar', c.id); await loadChars(); renderChars(); toast(`${c.name} updated`); }catch{ toast("Couldn't save. The phone may be out of space."); }
+  }, 'Tap again to overwrite with the current setup'));
+  $('charList').querySelectorAll('[data-del]').forEach(b => confirmTap(b, async () => {
+    const c = CHARS.list[+b.dataset.del];
+    try{ await IDB.del(c.id); }catch{} if (LS.get('activeChar', '') === c.id) LS.set('activeChar', '');
+    await loadChars(); renderChars(); toast(`${c.name} deleted`);
+  }, 'Tap the trash again to delete'));
+}
+$('charSave').onclick = async () => {
+  readVoiceFields();
+  const name = $('charName').value.trim() || assistantName();
+  const same = CHARS.list.find(c => c.name.toLowerCase() === name.toLowerCase());
+  if (same && !$('charSave').classList.contains('confirm')){ $('charSave').classList.add('confirm'); $('charSave').textContent = 'Overwrite?'; setTimeout(() => { $('charSave').classList.remove('confirm'); $('charSave').textContent = 'Save'; }, 3500); return; }
+  $('charSave').classList.remove('confirm'); $('charSave').textContent = 'Save';
+  try{
+    const c = snapshotChar(name, same && same.id);
+    await IDB.put(c); LS.set('activeChar', c.id);
+    $('charName').value = ''; await loadChars(); renderChars(); toast(`Saved ${name}`);
+  }catch{ toast("Couldn't save. The phone may be out of space."); }
+};
+loadChars();
 function renderSetMenu(){
   $('setMenu').innerHTML = SET_PAGES.map(p => `<button type="button" class="setrow" data-page="${p.id}">
       <span class="si">${ms(p.icon)}</span><span class="st"><b>${esc(p.title)}</b><span>${esc(p.sub())}</span></span>${ms('chevron_right','sm')}</button>`).join('');
@@ -4137,6 +4606,7 @@ function showSetPage(id){
   $('setMenu').hidden = !!id; $('setBack').hidden = !id;
   $('setTitle').textContent = id ? SET_PAGES.find(p => p.id === id).title : 'Settings';
   if (!id){ readVoiceFields(); renderSetMenu(); }
+  if (id === 'characters'){ $('charName').placeholder = `e.g. ${assistantName()}`; loadChars().then(renderChars); }
   disarmAll();
   $('settings').querySelector('.panel').scrollTop = 0;
 }
@@ -4169,7 +4639,7 @@ function confirmTap(b, fn, msg = 'Tap again to confirm'){
   b.onclick = e => {
     if (armed.has(b)){ disarm(b); fn(e); return; }
     disarmAll();
-    const iconOnly = !b.textContent.trim() || b.classList.contains('sx');
+    const iconOnly = b.classList.contains('sx') || b.classList.contains('ibtn') || (b.children.length === 1 && b.firstElementChild.classList.contains('ms') && b.textContent.trim() === b.firstElementChild.textContent.trim());
     armed.set(b, { label: iconOnly ? null : b.innerHTML, t: setTimeout(() => disarm(b), 3500) });
     b.classList.add('confirm');
     if (iconOnly) toast(msg, 2500); else b.textContent = msg;
@@ -4189,11 +4659,11 @@ function openSettings(){
     const o = document.createElement('option'); o.value = S.voiceId; o.textContent = S.voiceName; $('voiceSel').appendChild(o);
   }
   $('voiceSel').value = S.voiceId;
-  $('setHeading').checked = S.headingUp; $('setSpeed').checked = S.showSpeed;
+  $('setHeading').checked = S.headingUp; $('setSpeed').checked = S.showSpeed; $('setCams').checked = S.camAlerts; $('setInc').checked = S.incAlerts;
   syncSeg('unitsSeg', S.units); syncSeg('themeSeg', S.theme);
   syncSliders();
   status('');
-  applyPronouns(); lockKeys(); showSetPage(null);
+  applyPronouns(); syncHandsFree(); lockKeys(); showSetPage(null);
   openModal('settings');
 }
 function syncSeg(id, v){ document.querySelectorAll(`#${id} button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); }
@@ -4259,6 +4729,8 @@ $('customColor').addEventListener('click', () => { if (S.skin !== 'custom'){ S.s
 document.querySelectorAll('#themeSeg button').forEach(b => b.onclick = () => { S.theme = b.dataset.v; save(); syncSeg('themeSeg', S.theme); applyTheme(); setLayer(S.layer); });
 $('setHeading').onchange = () => { S.headingUp = $('setHeading').checked; save(); if (!S.headingUp) resetNorth(); };
 $('setSpeed').onchange = () => { S.showSpeed = $('setSpeed').checked; save(); };
+$('setCams').onchange = () => { S.camAlerts = $('setCams').checked; save(); };
+$('setInc').onchange = () => { S.incAlerts = $('setInc').checked; save(); };
 $('model').onchange = () => { S.model = $('model').value; save(); labelSliders(); };
 $('persona').onchange = () => { S.persona = $('persona').value; save(); };
 document.querySelectorAll('#chatterSeg button').forEach(b => b.onclick = () => { S.chatter = b.dataset.v; save(); syncSeg('chatterSeg', S.chatter); });
@@ -4328,6 +4800,7 @@ confirmTap($('offClear'), $('offClear').onclick);
 confirmTap($('clearHistory'), $('clearHistory').onclick);
 confirmTap($('avRemove'), $('avRemove').onclick);
 confirmTap($('resetVoice'), $('resetVoice').onclick);
+speechDelInit();
 
 /* app icon */
 function syncIconPick(){ let cur = LS.get('iconStyle', 'Default'); try{ if (NATIVE && NATIVE.getAppIcon) cur = NATIVE.getAppIcon(); }catch{} document.querySelectorAll('#iconPick .icn').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.icon === cur))); }

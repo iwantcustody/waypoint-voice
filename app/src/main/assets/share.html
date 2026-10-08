@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live trip</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+<style>
+:root{--surface:#fff;--ink:#202124;--muted:#5f6368;--line:#dadce0;--blue:#1a73e8;--green:#188038;--red:#d93025;--shadow:0 1px 3px rgba(60,64,67,.3),0 4px 8px 3px rgba(60,64,67,.15)}
+@media (prefers-color-scheme: dark){:root{--surface:#202124;--ink:#e8eaed;--muted:#9aa0a6;--line:#3c4043;--blue:#8ab4f8;--green:#81c995;--red:#f28b82}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--surface);color:var(--ink);font-family:Roboto,system-ui,sans-serif}
+#map{position:fixed;inset:0}
+.card{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:500;background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:16px 18px;max-width:480px;margin:0 auto}
+.who{font-size:15px;color:var(--muted)}
+.eta{font-size:30px;font-weight:500;color:var(--green);margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.sub{font-size:15px;color:var(--muted)}
+.upd{font-size:13px;color:var(--muted);margin-top:8px}
+.done .eta{color:var(--ink)}
+.stale .upd{color:var(--red)}
+.me{width:20px;height:20px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 6px rgba(26,115,232,.25)}
+.dst{width:16px;height:16px;border-radius:50% 50% 50% 0;background:#d93025;transform:rotate(-45deg);border:2px solid #fff}
+@media (prefers-color-scheme: dark){.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.88) contrast(.9) saturate(.6)}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="card" id="card"><div class="who" id="who">Loading trip…</div><div class="eta" id="eta"></div><div class="sub" id="sub"></div><div class="upd" id="upd"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(() => {
+  const topic = (location.hash || '').slice(1).replace(/[^A-Za-z0-9_-]/g, '');
+  const $ = id => document.getElementById(id);
+  if (!topic){ $('who').textContent = 'This link is missing its trip code.'; return; }
+  const map = L.map('map', { zoomControl:false }).setView([39.5, -98.35], 4);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'&copy; OpenStreetMap contributors' }).addTo(map);
+  let me = null, dst = null, last = null, fitted = false;
+  const fmtClock = t => new Date(t).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+  const fmtDur = s => { s = Math.max(0, Math.round(s / 60)); return s >= 60 ? `${Math.floor(s / 60)} hr ${s % 60} min` : `${s} min`; };
+  const fmtDist = (m, units) => units === 'metric' ? (m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 : 1)} km` : `${Math.round(m / 10) * 10} m`) : (m >= 160 ? `${(m / 1609.34).toFixed(m >= 16093 ? 0 : 1)} mi` : `${Math.round(m * 3.281 / 10) * 10} ft`);
+  const ago = t => { const s = Math.round((Date.now() - t) / 1000); return s < 60 ? 'just now' : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} hr ago`; };
+  function draw(){
+    const m = last; if (!m) return;
+    const card = $('card'); card.className = 'card';
+    if (!me){ me = L.marker([m.lat, m.lng], { icon:L.divIcon({ className:'', html:'<div class="me"></div>', iconSize:[20, 20], iconAnchor:[10, 10] }) }).addTo(map); }
+    else me.setLatLng([m.lat, m.lng]);
+    if (!dst){ dst = L.marker([m.dlat, m.dlng], { icon:L.divIcon({ className:'', html:'<div class="dst"></div>', iconSize:[16, 16], iconAnchor:[8, 16] }) }).addTo(map); }
+    if (!fitted){ map.fitBounds(L.latLngBounds([[m.lat, m.lng], [m.dlat, m.dlng]]), { padding:[60, 60], paddingBottomRight:[60, 200], maxZoom:15 }); fitted = true; }
+    $('who').textContent = `${m.who} ${m.done ? 'was' : 'is'} heading to ${m.dest}`;
+    if (m.done === 'arrived'){ card.classList.add('done'); $('eta').textContent = 'Arrived'; $('sub').textContent = `at ${fmtClock(m.t)}`; }
+    else if (m.done){ card.classList.add('done'); $('eta').textContent = 'Sharing ended'; $('sub').textContent = ''; }
+    else { $('eta').textContent = fmtDur((m.eta - Date.now()) / 1000); $('sub').textContent = `${fmtDist(m.left, m.units)} away · arrives ${fmtClock(m.eta)}`; }
+    const stale = !m.done && Date.now() - m.t > 5 * 60000;
+    if (stale) card.classList.add('stale');
+    $('upd').textContent = `Updated ${ago(m.t)}${stale ? ' · they may have lost signal' : ''}`;
+  }
+  async function poll(){
+    try{
+      const r = await fetch(`https://ntfy.sh/${topic}/json?poll=1&since=12h`, { cache:'no-store' });
+      const lines = (await r.text()).trim().split('\n');
+      for (const ln of lines){
+        try{
+          const ev = JSON.parse(ln);
+          if (ev.event !== 'message' || !ev.message) continue;
+          const m = JSON.parse(ev.message);
+          if (m && m.v === 1 && (!last || m.t >= last.t)) last = m;
+        }catch{}
+      }
+      if (!last) $('who').textContent = 'Waiting for the first update…';
+    }catch{ $('upd').textContent = "Couldn't reach the trip. Retrying…"; }
+    draw();
+    if (!last || !last.done) setTimeout(poll, 15000);
+  }
+  poll();
+  setInterval(draw, 30000);
+})();
+</script>
+</body>
+</html>
