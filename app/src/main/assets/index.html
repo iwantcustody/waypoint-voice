@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#ffffff">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Waypoint Voice</title>
+<title>Shotgun</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://photon.komoot.io" crossorigin>
@@ -917,7 +917,7 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ms = (name, cls='') => `<span class="ms ${cls}">${name}</span>`;
-// Present when running inside the Waypoint Voice Android app
+// Present when running inside the Shotgun Android app
 const NATIVE = window.Native || null;
 
 /* ================= storage & settings ================= */
@@ -1836,7 +1836,9 @@ const Buddy = (() => {
     if (!S.buddyAlways || st.nav || !BUDDY_IDLE_VIEWS.includes(curView())) return false;
     return isShift() || sheet.hidden || sheet.getBoundingClientRect().height < innerHeight * 0.55;
   }
-  function visible(){ return ready() && S.buddyOn && (!!st.nav || Buddy.testing || performance.now() < Buddy.lingerUntil || idleShow()); }
+  // stays out of the way while settings or any popup is open (except when you're testing the voice)
+  const popupOpen = () => [...document.querySelectorAll('.modal')].some(m => !m.hidden);
+  function visible(){ return ready() && S.buddyOn && (Buddy.testing || (!popupOpen() && (!!st.nav || performance.now() < Buddy.lingerUntil || idleShow()))); }
   function setFrame(k){
     const src = frames[k] || frames.closed;
     if (shownFrame === src) return;
@@ -1984,6 +1986,7 @@ function closeModal(id){
   if (history.state && history.state.modal === id){ ignorePop = true; try{ history.back(); }catch{ ignorePop = false; } }
 }
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeModal(b.dataset.close));
+new MutationObserver(() => Buddy.refresh()).observe(document.body, { subtree:true, attributes:true, attributeFilter:['hidden'] });
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m && !m.dataset.sticky) closeModal(m.id); }));
 // Phone back button: step back inside settings, then close the top popup, before leaving the screen
 function topModal(){ return [...document.querySelectorAll('.modal')].filter(m => !m.hidden).sort((a, b) => (+b.style.zIndex || 0) - (+a.style.zIndex || 0))[0]; }
@@ -3539,7 +3542,7 @@ function syncCar(){
   $('carNow').textContent = S.carName ? `My car: ${S.carName}` : 'No car picked yet.';
   $('carAuto').checked = S.carAuto;
   const needs = S.carAuto && NATIVE && NATIVE.canDrawOverlays && !NATIVE.canDrawOverlays();
-  $('carAutoNote').textContent = needs ? 'Turn on "Display over other apps" for Waypoint Voice, then come back.' : 'Android needs "Display over other apps" for this; you\'ll be taken there once. Without it you get a tap-to-open notification instead.';
+  $('carAutoNote').textContent = needs ? 'Turn on "Display over other apps" for Shotgun, then come back.' : 'Android needs "Display over other apps" for this; you\'ll be taken there once. Without it you get a tap-to-open notification instead.';
   if (NATIVE && NATIVE.setCar) NATIVE.setCar(S.carAddr, S.carName, !!S.carAuto);
 }
 function pickCar(){
@@ -4474,7 +4477,7 @@ function onPosError(e){
 }
 if (NATIVE){
   window.__nativeLocation = o => onPosition({ coords:{ latitude:o.lat, longitude:o.lng, accuracy:o.acc, speed:o.speed >= 0 ? o.speed : null, heading:o.hasBearing ? o.bearing : null }, timestamp:o.t || Date.now() });
-  window.__nativeLocationDenied = () => toast('Location is off for Waypoint Voice. Allow it in Android Settings → Apps → Waypoint Voice → Permissions.', 7000);
+  window.__nativeLocationDenied = () => toast('Location is off for Shotgun. Allow it in Android Settings → Apps → Shotgun → Permissions.', 7000);
   NATIVE.startLocation();
 }
 else if (!('geolocation' in navigator)) toast('This browser has no GPS access.');
@@ -4490,7 +4493,7 @@ function drawMedia(){
     if (LS.get('mediaAskOff', false)){ row.hidden = true; return; }
     row.className = 'mediarow ask';
     row.innerHTML = `<span class="ms" style="color:var(--blue)">music_note</span><span class="mtx">Show music controls while you drive</span><button class="pbtn primary" id="mAllow">Allow</button><button class="ibtn" id="mNo" aria-label="Not now">${ms('close','sm')}</button>`;
-    $('mAllow').onclick = () => { NATIVE.openMediaAccess(); toast('Turn on Waypoint Voice, then come back'); };
+    $('mAllow').onclick = () => { NATIVE.openMediaAccess(); toast('Turn on Shotgun, then come back'); };
     $('mNo').onclick = () => { LS.set('mediaAskOff', true); drawMedia(); placeFabs(); };
     row.hidden = false; return;
   }
@@ -4822,7 +4825,7 @@ $('iconFile').addEventListener('change', () => {
     const k = Math.max(N / im.naturalWidth, N / im.naturalHeight), w = im.naturalWidth * k, h = im.naturalHeight * k;
     const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, N, N); g.drawImage(im, (N - w) / 2, (N - h) / 2, w, h);
     URL.revokeObjectURL(url);
-    try{ const ok = NATIVE.pinShortcut('Waypoint Voice', c.toDataURL('image/png').split(',')[1]); toast(ok === false ? "Your home screen app doesn't allow adding icons" : 'Tap Add on the popup to put it on your home screen', 5000); }
+    try{ const ok = NATIVE.pinShortcut('Shotgun', c.toDataURL('image/png').split(',')[1]); toast(ok === false ? "Your home screen app doesn't allow adding icons" : 'Tap Add on the popup to put it on your home screen', 5000); }
     catch{ toast("Couldn't add the icon"); }
   };
   im.onerror = () => { URL.revokeObjectURL(url); toast("That file isn't a picture this phone can read"); };
