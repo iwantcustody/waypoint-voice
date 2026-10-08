@@ -126,6 +126,7 @@ label.pbtn{cursor:pointer}
 .sheet.dragging{transition:none}
 .grab{flex:none;padding:10px 0 4px;touch-action:none;cursor:grab}
 .grab i{display:block;width:32px;height:4px;border-radius:2px;background:var(--line);margin:0 auto}
+.dirbar{position:sticky;bottom:calc(-16px - env(safe-area-inset-bottom,0px));z-index:2;background:var(--surface);padding:10px 16px calc(env(safe-area-inset-bottom,0px) + 14px)!important;margin:0;box-shadow:0 -1px 0 var(--line)}
 .sbody{flex:1;min-height:0;overflow-y:auto;padding:0 0 calc(env(safe-area-inset-bottom,0px) + 16px);overscroll-behavior:contain}
 .shead{padding:4px 16px 10px;display:flex;align-items:flex-start;gap:8px}
 .shead .grow{flex:1;min-width:0}
@@ -813,6 +814,9 @@ html.wide.shift #pinFix .pfpin{left:calc(var(--side) + (100vw - var(--side)) / 2
       <div class="fld"><label>Language</label>
         <div class="seg" id="vibeSeg"><button type="button" data-v="clean">Clean</button><button type="button" data-v="casual">Casual</button><button type="button" data-v="unhinged">Unhinged</button></div>
         <div class="small" id="vibeNote"></div></div>
+      <div class="fld"><label>Answer length</label>
+        <div class="seg" id="lenSeg"><button type="button" data-v="short">Short</button><button type="button" data-v="auto">Match the question</button><button type="button" data-v="chatty">Chatty</button></div>
+        <div class="small" id="lenNote"></div></div>
       <label class="check"><input type="checkbox" id="asstFollowUp"><span data-pt="afterAns"></span>, listen for a follow-up (no tap needed)</label>
       <label class="check"><input type="checkbox" id="asstSearch"><span data-pt="letSearch"></span> (needed for events and anything current)</label>
       <div class="fld"><label for="asstNotes">Things <span data-pt="who"></span> should know about you (optional)</label><textarea id="asstNotes" placeholder="e.g. I'm into anime and VTubers, I live in Barstow, I hate traffic"></textarea></div>
@@ -984,12 +988,12 @@ const S = {
   persona:(p => p === 'shark' ? 'chill' : p)(LS.get('persona','standard')), customLines:LS.get('customLines',{}), chatter:LS.get('chatter','some'), funFacts:LS.get('funFacts',true), speedWarn:LS.get('speedWarn',true),
   stab:LS.get('stab',0.55), sim:LS.get('sim',0.8), sty:LS.get('sty',0), spd:LS.get('spd',1), boost:LS.get('boost',true),
   theme:LS.get('theme','auto'), skin:LS.get('skin','google'), customColor:LS.get('customColor','#e0559b'), layer:LS.get('layer','default'), mode:LS.get('mode','car'),
-  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), pron:LS.get('pron','it'), ppRadius:LS.get('ppRadius',100), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
+  headingUp:LS.get('headingUp',true), showSpeed:LS.get('showSpeed',true), showPoi:LS.get('showPoi',true), buddyOn:LS.get('buddyOn',true), buddyAlways:LS.get('buddyAlways',false), pron:LS.get('pron','it'), asstLen:LS.get('asstLen','auto'), ppRadius:LS.get('ppRadius',100), camAlerts:LS.get('camAlerts',true), incAlerts:LS.get('incAlerts',true), wakeOn:LS.get('wakeOn',false), wakePhrase:LS.get('wakePhrase',''), micPref:LS.get('micPref','ask'), carAddr:LS.get('carAddr',''), carName:LS.get('carName',''), carAuto:LS.get('carAuto',false), buddySize:LS.get('buddySize','m'),
   avoidHw:LS.get('avoidHw',false), avoidToll:LS.get('avoidToll',false), avoidFerry:LS.get('avoidFerry',false)
 };
 Object.assign(S, { ttKey:LS.get('ttKey',''), carpool:LS.get('carpool',false), mpg:LS.get('mpg',28), autoFaster:LS.get('autoFaster',false), trafficLayer:LS.get('trafficLayer',true), claudeKey:LS.get('claudeKey',''), claudeModel:LS.get('claudeModel','claude-haiku-5-5'), asstName:LS.get('asstName',''), asstSearch:LS.get('asstSearch',true), asstNotes:LS.get('asstNotes',''), asstFollowUp:LS.get('asstFollowUp',true), asstMirror:LS.get('asstMirror',true), vibe:LS.get('vibe', LS.get('asstMirror', true) ? 'casual' : 'clean'), geminiKey:LS.get('geminiKey',''), geminiModel:LS.get('geminiModel','gemini-3.8-flash'), asstTone:LS.get('asstTone',true), gKey:LS.get('gKey',''), gDay:LS.get('gDay',25), gPhotoDay:LS.get('gPhotoDay',30) });
 const VOICE_DEFAULTS = { stab:0.55, sim:0.8, sty:0, spd:1, boost:true };
-const SAVE_KEYS = ['gKey','gDay','gPhotoDay','vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','ppRadius','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
+const SAVE_KEYS = ['gKey','gDay','gPhotoDay','vibe','geminiKey','geminiModel','asstTone','asstMirror','asstFollowUp','ttKey','carpool','mpg','autoFaster','trafficLayer','claudeKey','claudeModel','asstName','asstSearch','asstNotes','key','voiceId','voiceName','model','units','persona','customLines','chatter','funFacts','speedWarn','stab','sim','sty','spd','boost','theme','skin','customColor','layer','mode','headingUp','showSpeed','showPoi','buddyOn','buddyAlways','pron','asstLen','ppRadius','camAlerts','incAlerts','wakeOn','wakePhrase','micPref','carAddr','carName','carAuto','buddySize','avoidHw','avoidToll','avoidFerry'];
 const save = () => SAVE_KEYS.forEach(k => LS.set(k, S[k]));
 
 let saved = LS.get('saved', null) || { home:null, work:null, lists:{ favorites:[], want:[], starred:[] }, labels:[] };
@@ -2902,13 +2906,14 @@ async function gFetch(url, opts = {}, fields){
   const r = await fetchTimeout(url, 12000, { ...opts, headers });
   if (r.status === 403 || r.status === 400){
     const t = await r.text(); let msg = '';
-    try{ msg = JSON.parse(t).error?.message || ''; }catch{}
+    let reason = '';
+    try{ const er = JSON.parse(t).error || {}; msg = er.message || ''; reason = (er.details || []).map(d => d.reason).filter(Boolean)[0] || er.status || ''; }catch{}
     throw new Error(/billing/i.test(t) ? 'Billing isn\'t on for this Google Cloud project yet (it can take a few minutes after setup)'
       : /has not been used|is disabled|SERVICE_DISABLED/i.test(t) ? 'Turn on "Places API (New)" for this project in Google Cloud (it can take a few minutes to kick in)'
       : /are blocked|API_KEY_SERVICE_BLOCKED/i.test(t) ? 'Your key is restricted to a different API. In Credentials, edit the key and tick "Places API (New)" (not the old "Places API")'
       : /referer|referrer|API_KEY_HTTP_REFERRER_BLOCKED|android app|ANDROID_APP_BLOCKED/i.test(t) ? 'Your key has an app/website restriction. In Credentials, set "Application restrictions" to None'
       : /API key not valid|API_KEY_INVALID/i.test(t) ? 'Google says the key isn\'t valid. Copy it again from Credentials'
-      : 'Google error ' + r.status + (msg ? ': ' + msg.slice(0, 160) : ''));
+      : 'Google error ' + r.status + (msg ? ': ' + msg.slice(0, 160) : '') + (reason ? ` (${reason})` : ''));
   }
   if (r.status === 429) throw new Error('Google limit reached for today');
   if (!r.ok) throw new Error('Google error ' + r.status);
@@ -3365,6 +3370,13 @@ function tripContext(){
   return `Navigating to: ${dest} (${p.dest.lat.toFixed(5)}, ${p.dest.lng.toFixed(5)}). ${fmtDist(left)} and about ${fmtDur(secs)} left, arriving around ${fmtClock(new Date(Date.now() + secs * 1000))}.` +
     (stops ? ` Stops on the way: ${stops}.` : '') + (next ? ` Next maneuver: ${instruction(next)}.` : '');
 }
+const LEN_PROMPT = {
+  short:'Keep every answer to one short sentence, under 20 words. No small talk, no follow-up questions. Only go longer if the user explicitly asks for more detail.',
+  auto:'Match the length to the question. Simple or factual questions ("what time does it close", "how far is it", yes/no) get one short sentence, under 20 words. Open-ended or chatty ones ("tell me about…", "what is there to do", trivia, small talk) get 3 to 5 sentences, under 100 words.',
+  chatty:'Be talkative and conversational: answer in 3 to 6 sentences (under 140 words), add a fun detail, and sometimes end with a light follow-up question. Simple yes/no questions can still be shorter.'
+};
+const LEN_NOTES = { short:'One quick sentence, every time.', auto:'Short for simple questions, longer when you ask something open-ended.', chatty:'Longer, more conversational answers with fun extras.' };
+function syncLen(){ syncSeg('lenSeg', S.asstLen); $('lenNote').textContent = LEN_NOTES[S.asstLen] || ''; }
 function systemPrompt(place){
   const name = assistantName();
   const style = S.persona === 'standard'
@@ -3378,7 +3390,8 @@ ${VIBE_PROMPT[S.vibe] || VIBE_PROMPT.casual}
 ${S.geminiKey && S.asstTone ? `Voice analysis: the user's message may start with a note in square brackets, like [whispering] or [sounds sarcastic, laughing], describing HOW they said it. React naturally: answer softly and briefly if they whisper, play along if they're sarcastic, match excitement or annoyance. Never mention or repeat the note itself.` : ''}
 ${S.model === 'eleven_v3' ? 'Your voice can perform one short audio tag at the start of a sentence, like [whispers], [laughs], [sighs] or [sarcastically]. Use one only when it fits the moment, at most once per reply.' : 'Never use square-bracket tags.'}
 Rules:
-- Answer in 1 to 3 short sentences, under 60 words. Spoken style only: no lists, markdown, emoji, URLs, or parentheses.
+- ${LEN_PROMPT[S.asstLen] || LEN_PROMPT.auto}
+- If the user asks you to keep it short, or to tell them more, do that for the rest of the conversation. Spoken style only: no lists, markdown, emoji, URLs, or parentheses.
 - Lead with the answer. Round numbers. Say times like "3:30 PM".
 - Only use web search when the answer depends on current or local info (events, hours, news, weather, prices, what's open). For general knowledge, trivia, history, math, opinions or chit-chat, answer directly without searching. If a search finds nothing, say so briefly.
 - Never suggest the driver look at or type on the phone. If something needs reading, say you'll leave it on screen for when they're stopped.
@@ -3396,7 +3409,7 @@ async function askClaude(question, hooks = {}, delivery = ''){
     ...(place && (place.city || place.country) ? { user_location:{ type:'approximate', ...(place.city ? { city:place.city } : {}), ...(place.region ? { region:place.region } : {}), ...(place.country ? { country:place.country } : {}), timezone:Intl.DateTimeFormat().resolvedOptions().timeZone } } : {}) }] : undefined;
   const messages = [...ASK.history.slice(-6), { role:'user', content: delivery ? `[${delivery}] ${question}` : question }];
   const allTools = [...(tools || []), ...TRIP_TOOLS];
-  const body = { model:S.claudeModel, max_tokens:500, stream:true, system:systemPrompt(place), messages, tools:allTools };
+  const body = { model:S.claudeModel, max_tokens:S.asstLen === 'chatty' ? 700 : 500, stream:true, system:systemPrompt(place), messages, tools:allTools };
   const call = b => fetchTimeout('https://api.anthropic.com/v1/messages', 60000, {
     method:'POST',
     headers:{ 'content-type':'application/json', 'x-api-key':S.claudeKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
@@ -4095,19 +4108,24 @@ function showRoutes(dir, fit){
         <div class="rv">${esc(viaName(r))}${!r._tags && i === 0 && dir.routes.length > 1 ? ' · Fastest route' : r.duration > fastest + 30 ? ` · ${fmtDur(r.duration - fastest)} slower` : ''}</div>
         <div class="rv">${r._tt ? (r._tt.delay > 90 ? `<span class="tdelay">+${fmtDur(r._tt.delay)} traffic</span> · ` : '<span class="tclear">Light traffic</span> · ') : ''}Arrive ${fmtClock(new Date(Date.now() + r.duration * 1000))}${r._tt && r._tt.fuel != null ? ` · ${fmtFuel(r._tt.fuel)}` : ''}</div>
       </span></button>`).join('')}</div>
-    <div class="actions" style="padding-top:10px">
+    <div class="actions dirbar">
       ${fromMe ? `<button class="pbtn primary big" id="dStart">${ms('navigation','fill')}Start</button>` : ''}
       <button class="pbtn outline big" id="dSteps">${ms('format_list_bulleted')}Steps</button>
       <button class="pbtn outline big" id="dSim">${ms('play_circle')}Test drive</button>
       <button class="pbtn outline big" id="dOffline">${ms('download_for_offline')}Save offline</button>
     </div>
     ${fromMe ? '' : '<div class="empty" style="padding-top:0">Turn-by-turn starts from your location. Set the starting point to Your location to drive it.</div>'}`;
-  sbody.querySelectorAll('.route-item').forEach(b => b.onclick = () => { dir.sel = +b.dataset.i; showRoutes(dir); });
+  // tap a route to pick it; tap the picked one again to start (Start also stays pinned at the bottom)
+  sbody.querySelectorAll('.route-item').forEach(b => b.onclick = () => {
+    const i = +b.dataset.i;
+    if (i === dir.sel && fromMe){ startNav(dir, false); return; }
+    const top = sbody.scrollTop; dir.sel = i; showRoutes(dir); sbody.scrollTop = top;
+  });
   if ($('dStart')) $('dStart').onclick = () => startNav(dir, false);
   $('dSim').onclick = () => startNav(dir, true);
   $('dOffline').onclick = () => openOffline(dir);
   $('dSteps').onclick = () => showSteps(prepRoute(dir.routes[dir.sel], { stops:dir.stops }), 0, dir.to.name);
-  setSheet(0, [Math.min(innerHeight * 0.5, 150 + dir.routes.length * 92), 0.9]);
+  if (fit) setSheet(0, [Math.min(innerHeight * 0.55, 170 + dir.routes.length * 92), 0.9]);
   if (fit){
     const b = L.latLngBounds(dir.routes[0].geometry.coordinates.map(c => [c[1], c[0]]));
     map.fitBounds(b, { paddingTopLeft:[30, isShift() ? 30 : $('dirTop').offsetHeight + 20], paddingBottomRight:[30, coverBottom(sheet.getBoundingClientRect().height + 20)] });
@@ -4938,7 +4956,7 @@ const SET_PAGES = [
 ];
 let setPage = null;
 /* ---------- characters: whole buddy setups you can switch between ---------- */
-const CHAR_KEYS = ['asstName','pron','voiceId','voiceName','model','stab','sim','sty','spd','boost','persona','customLines','chatter','vibe','skin','customColor','buddySize','buddyOn','wakePhrase'];
+const CHAR_KEYS = ['asstLen','asstName','pron','voiceId','voiceName','model','stab','sim','sty','spd','boost','persona','customLines','chatter','vibe','skin','customColor','buddySize','buddyOn','wakePhrase'];
 const CHARS = { list:[] };
 const IDB = (() => {
   const run = (mode, fn) => DB.run('chars', mode, fn);
@@ -5049,7 +5067,7 @@ function confirmTap(b, fn, msg = 'Tap again to confirm'){
 function openSettings(){
   loadElUsage();
   $('ttKey').value = S.ttKey; $('mpg').value = S.mpg; $('mpgV').textContent = S.mpg; $('autoFaster').checked = S.autoFaster; $('ttStatus').textContent = hasTT() ? 'Live traffic is on.' : '';
-  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstFollowUp').checked = S.asstFollowUp; syncVibe(); $('geminiKey').value = S.geminiKey; $('geminiModel').value = S.geminiModel; $('asstTone').checked = S.asstTone; $('asstNotes').value = S.asstNotes;
+  $('claudeKey').value = S.claudeKey; $('asstName').value = S.asstName; $('claudeModel').value = S.claudeModel; $('asstSearch').checked = S.asstSearch; $('asstFollowUp').checked = S.asstFollowUp; syncVibe(); syncLen(); $('geminiKey').value = S.geminiKey; $('geminiModel').value = S.geminiModel; $('asstTone').checked = S.asstTone; $('asstNotes').value = S.asstNotes;
   offlineUsage().then(u => { const t = LS.get('offlineTrip', null); $('offUsage').textContent = [t ? `Saved route: ${t.to.name}` : 'No saved routes yet. Use Save offline on a route.', u].filter(Boolean).join(' · '); });
   syncSeg('chatterSeg', S.chatter); $('setFacts').checked = S.funFacts; $('setSpeedWarn').checked = S.speedWarn;
   renderBuddySlots();
@@ -5106,6 +5124,7 @@ $('asstSearch').onchange = () => { S.asstSearch = $('asstSearch').checked; save(
 $('asstFollowUp').onchange = () => { S.asstFollowUp = $('asstFollowUp').checked; save(); };
 const VIBE_NOTES = { clean:'No swearing, ever.', casual:'Swears back if you do, stays clean if you don\'t.', unhinged:'Swears freely, roasts you and other drivers, dark humor. No slurs.' };
 function syncVibe(){ syncSeg('vibeSeg', S.vibe); $('vibeNote').textContent = VIBE_NOTES[S.vibe] || ''; }
+document.querySelectorAll('#lenSeg button').forEach(b => b.onclick = () => { S.asstLen = b.dataset.v; save(); syncLen(); });
 document.querySelectorAll('#vibeSeg button').forEach(b => b.onclick = () => { S.vibe = b.dataset.v; save(); syncVibe(); });
 $('geminiKey').addEventListener('change', () => { S.geminiKey = $('geminiKey').value.trim(); ASK.toneBroken = false; save(); });
 $('geminiModel').onchange = () => { S.geminiModel = $('geminiModel').value; save(); };
